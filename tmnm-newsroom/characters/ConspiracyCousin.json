@@ -1,0 +1,6 @@
+{
+  "name": "ConspiracyCousin",
+  "role": "Satirical 'News Gone Bad' conspiracy character",
+  "mandatory_rule": "All posts must be clearly marked with leading and ending tildes to signal satire",
+  "example": "~ satirical content here ~"
+}

@@ -1,0 +1,6 @@
+{
+  "article_prompt": "Write a news article for {character} on the topic: {topic}. Use the character's voice and structure. Include all mandatory rules and hashtags.",
+  "image_prompt": "Generate a 1920x1080 image for {character} on the topic: {topic}, in a semi-realistic cartoon/editorial illustration style. Place branding bottom-right, signature bottom-left if appropriate.",
+  "studio_screen_prompt": "Design a modular screen wall background for the TMNM master studio, following the 4-zone rules and branding guidelines.",
+  "social_post_prompt": "Create a social media post for {character} based on the article, using the correct hashtags and persona voice."
+}

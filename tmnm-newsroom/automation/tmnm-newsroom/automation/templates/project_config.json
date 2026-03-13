@@ -1,0 +1,14 @@
+{
+  "repo_name": "tmnm-newsroom",
+  "drive_root_name": "TMNM",
+  "desks": [
+    "Politic_Al",
+    "RetiredTrader",
+    "BallisticBen",
+    "AshaObserves",
+    "ConspiracyCousin",
+    "ThePeopleSay"
+  ],
+  "default_graphic_size": "1920x1080",
+  "master_studio": "TMNM_Studio_Master_v1"
+}
