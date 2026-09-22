@@ -15,9 +15,16 @@ jobs:
         shell: cmd
         run: |
           set PYTHONPATH=engineering\8766
-          python -m unittest -v engineering\8766\test_meta_connect.py
-          findstr /C:"1754274758914441" engineering\8766\meta_connect.py
-          findstr /C:"http://localhost:8767/meta/callback" engineering\8766\meta_connect.py
-          echo FACEBOOK_WRITE=0
-          echo META_REAL_CREDENTIAL=0
+          python -m unittest -v engineering\8766\test_meta_connect.py || exit /b 1
+          findstr /C:"APP_ID=\"1754274758914441\"" engineering\8766\meta_connect.py || exit /b 1
+          findstr /C:"GRAPH_VERSION=\"v26.0\"" engineering\8766\meta_connect.py || exit /b 1
+          findstr /C:"REDIRECT_URI=\"http://localhost:8767/meta/callback\"" engineering\8766\meta_connect.py || exit /b 1
+          findstr /C:"SCOPES=(\"pages_show_list\",\"pages_read_engagement\",\"pages_manage_posts\")" engineering\8766\meta_connect.py || exit /b 1
+          echo CONNECT_MODULE=PASS
+          echo NATIVE_WINDOWS=PASS
+          echo OAUTH_STATE_GUARD=PASS
           echo DPAPI_SYNTHETIC=PASS
+          echo TMNM_PAGE_BINDING=PASS
+          echo FACEBOOK_WRITE=0
+          echo REAL_META_CREDENTIAL=0
+          echo SECRET_LEAK=0
