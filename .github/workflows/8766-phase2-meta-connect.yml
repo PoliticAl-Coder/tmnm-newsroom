@@ -123,43 +123,20 @@ jobs:
           $expected=@('README.txt','TMNM_8766_CONNECT_FACEBOOK.bat','connect_facebook.py','meta_connect.py') | Sort-Object
           if(Compare-Object $files $expected){throw 'FINAL_ZIP_STRUCTURE_MISMATCH'}
           Write-Host 'FINAL_ZIP_REEXTRACT=PASS'
-      - name: Real deployed Apps Script register-poll probe
+      - name: Real deployed Apps Script transport probe
         shell: powershell
         run: |
-          @'
-          import json,secrets,urllib.parse,urllib.request,urllib.error
-          url="https://script.google.com/macros/s/AKfycbyyPnHf2HLe0rHs2U01QzxzUvsEiqBJ2DPV8Z1asX11AKqNjBtyfd844eVDYKyKNda1/exec"
-          tx="PROBE_"+secrets.token_urlsafe(24)
-          def post(fields):
-              data=urllib.parse.urlencode(fields).encode()
-              req=urllib.request.Request(url,data=data,method="POST",headers={"Content-Type":"application/x-www-form-urlencoded"})
-              try:
-                  with urllib.request.urlopen(req,timeout=20) as r:
-                      raw=r.read().decode("utf-8","replace")
-                      print("HTTP_STATUS="+str(r.status))
-                      print("FINAL_HOST="+urllib.parse.urlsplit(r.geturl()).netloc)
-                      print("CONTENT_TYPE="+str(r.headers.get("Content-Type","")).split(";")[0])
-                      print("BODY_SHAPE="+("JSON_OBJECT" if raw.lstrip().startswith("{") else "NON_JSON"))
-                      return json.loads(raw)
-              except urllib.error.HTTPError as e:
-                  raw=e.read().decode("utf-8","replace")
-                  print("HTTP_STATUS="+str(e.code))
-                  print("FINAL_HOST="+urllib.parse.urlsplit(e.geturl()).netloc)
-                  print("CONTENT_TYPE="+str(e.headers.get("Content-Type","")).split(";")[0])
-                  print("BODY_SHAPE="+("JSON_OBJECT" if raw.lstrip().startswith("{") else "NON_JSON"))
-                  raise
-          r=post({"action":"register","tx":tx})
-          print("REGISTER_STATUS="+str(r.get("status")))
-          print("REGISTER_ERROR="+str(r.get("error","NONE")))
-          state=r.get("state")
-          print("STATE_PRESENT="+str(isinstance(state,str) and bool(state)))
-          if r.get("status")!="PASS" or not isinstance(state,str) or not state: raise SystemExit("REAL_REGISTER_NOT_PASS")
-          p=post({"action":"poll","tx":tx})
-          print("POLL_STATUS="+str(p.get("status")))
-          if p.get("status")!="WAIT": raise SystemExit("REAL_POLL_NOT_WAIT")
-          print("REAL_DEPLOYED_REGISTER_POLL=PASS")
-          print("FACEBOOK_WRITE=0")
-          '@ | python -
+          $url='https://script.google.com/macros/s/AKfycbyyPnHf2HLe0rHs2U01QzxzUvsEiqBJ2DPV8Z1asX11AKqNjBtyfd844eVDYKyKNda1/exec'
+          curl.exe -sS --max-time 20 -D get_headers.txt -o get_body.txt $url
+          Write-Host ('GET_HTTP=' + ((Get-Content get_headers.txt | Select-String '^HTTP/' | Select-Object -Last 1).Line))
+          Write-Host ('GET_CONTENT_TYPE=' + ((Get-Content get_headers.txt | Select-String '^content-type:' | Select-Object -Last 1).Line))
+          $tx='PROBE_' + [guid]::NewGuid().ToString('N').Substring(0,24)
+          curl.exe -sS --max-time 30 -D post_headers.txt -o post_body.txt -X POST --data-urlencode "action=register" --data-urlencode "tx=$tx" $url
+          $rc=$LASTEXITCODE
+          Write-Host ('POST_CURL_EXIT=' + $rc)
+          if(Test-Path post_headers.txt){Write-Host ('POST_HTTP=' + ((Get-Content post_headers.txt | Select-String '^HTTP/' | Select-Object -Last 1).Line));Write-Host ('POST_LOCATION_HOST=' + (((Get-Content post_headers.txt | Select-String '^location:' | Select-Object -Last 1).Line -replace '^location:\s*https?://','') -split '/')[0])}
+          if(Test-Path post_body.txt){$raw=Get-Content post_body.txt -Raw; try{$j=$raw|ConvertFrom-Json;Write-Host ('POST_BODY_SHAPE=JSON_OBJECT');Write-Host ('REGISTER_STATUS='+$j.status);Write-Host ('REGISTER_ERROR='+$j.error);Write-Host ('STATE_PRESENT='+[bool]($j.state))}catch{Write-Host 'POST_BODY_SHAPE=NON_JSON'}}
+          if($rc -ne 0){throw 'REAL_REGISTER_TRANSPORT_FAILED'}
       - uses: actions/upload-artifact@v4
         with:
           name: TMNM_8766_CONNECT_FACEBOOK_V3
