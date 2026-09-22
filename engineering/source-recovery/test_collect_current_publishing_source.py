@@ -61,11 +61,13 @@ class CollectorTests(unittest.TestCase):
   with self.assertRaisesRegex(c.CollectorError,"SECRET_ASSIGNMENT"): c.collect(self.root)
  def test_quoted_dictionary_api_key_fails(self):
   self.f("ControlRoom/dictkey.py",'x={"api_key": "abcdefgh12345678"}')
-  with self.assertRaisesRegex(c.CollectorError,"SECRET_ASSIGNMENT"): c.collect(self.root)\n def test_traversal_error_callback_raises(self):
+  with self.assertRaisesRegex(c.CollectorError,"SECRET_ASSIGNMENT"): c.collect(self.root)
+ def test_traversal_error_callback_raises(self):
   def fake_walk(*a,**kw):
    kw["onerror"](OSError("walk denied")); return iter(())
   with patch.object(c.os,"walk",side_effect=fake_walk):
-   with self.assertRaisesRegex(c.CollectorError,"TRAVERSAL_ERROR"): c.collect(self.root)\n def test_config_secret_filename_is_never_read(self):
+   with self.assertRaisesRegex(c.CollectorError,"TRAVERSAL_ERROR"): c.collect(self.root)
+ def test_config_secret_filename_is_never_read(self):
   p=self.f("ControlRoom/config.json","client_secret='REAL_SECRET_123456789'")
   self.assertTrue(c.EXCLUDE_NAME_RE.search(p.name))
  def test_unique_output_never_deletes_existing_zip(self):
