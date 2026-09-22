@@ -114,11 +114,22 @@ def persist_evidence(payload:dict, info:dict, title:str, drive_factory=None):
 
 def run(argv=None, inspect_fn=inspect, persist_fn=persist_evidence):
     p=argparse.ArgumentParser(); p.add_argument("--credential",required=True); p.add_argument("--out",required=True); p.add_argument("--persist-drive",action="store_true"); a=p.parse_args(argv)
-    result,snapshot=inspect(Path(a.credential))
-    payload={"result":result,"snapshot":snapshot}
+    result,snapshot,info=inspect_fn(Path(a.credential))
+    payload={"result":result,"snapshot":snapshot,"drive_persistence":{"status":"NOT_REQUESTED","drive_file_id":None}}
+    if a.persist_drive:
+        payload["drive_persistence"]={"status":"HOLD","drive_file_id":None}
+        if result["GOOGLE_AUTH"]=="PASS" and info is not None:
+            try:
+                receipt=persist_fn({"result":result,"snapshot":snapshot},info,"TMNM_MASTER384_APPS_SCRIPT_READONLY_RESULT.json")
+                payload["drive_persistence"]={"status":"PASS","drive_file_id":receipt["drive_file_id"],"verified":bool(receipt.get("verified"))}
+            except Exception as e:
+                result["error"]="EVIDENCE_PERSISTENCE_FAILED: "+safe_error(e)
+                result["GOOGLE_AUTH"]="FAIL"
     Path(a.out).write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding="utf-8")
-    print("TMNM_MASTER384_STATUS="+("PASS" if result["GOOGLE_AUTH"]=="PASS" else "HOLD"))
+    info=None
+    ok=result["GOOGLE_AUTH"]=="PASS" and (not a.persist_drive or payload["drive_persistence"]["status"]=="PASS")
+    print("TMNM_MASTER384_STATUS="+("PASS" if ok else "HOLD"))
     print("RESULT_FILE="+str(Path(a.out)))
-    return 0 if result["GOOGLE_AUTH"]=="PASS" and (not a.persist_drive or payload["drive_persistence"]["status"]=="PASS") else 2
+    return 0 if ok else 2
 def main(argv=None): return run(argv)
 if __name__=="__main__": raise SystemExit(main())
