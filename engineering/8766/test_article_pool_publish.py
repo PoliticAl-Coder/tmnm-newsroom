@@ -1,21 +1,22 @@
-import importlib.util,json,sqlite3,tempfile,threading,unittest
+import importlib.util,json,sqlite3,tempfile,threading,unittest,sys
 from pathlib import Path
 from tmnm_fb_publisher.core import Publisher
 _here=Path(__file__).with_name("article_pool_publish.py")
-_spec=importlib.util.spec_from_file_location("article_pool_publish",_here); ap=importlib.util.module_from_spec(_spec);_spec.loader.exec_module(ap)
+_spec=importlib.util.spec_from_file_location("article_pool_publish",_here); ap=importlib.util.module_from_spec(_spec);sys.modules[_spec.name]=ap;_spec.loader.exec_module(ap)
 ArticlePoolPublishAction=ap.ArticlePoolPublishAction; TMNM_PAGE_ID=ap.TMNM_PAGE_ID; payload_sha256=ap.payload_sha256
 class MockMeta:
  def __init__(self,mode="ok"): self.calls=0; self.mode=mode; self.lock=threading.Lock()
  def publish(self,**kw):
   with self.lock:self.calls+=1
-  if self.mode=="ok":return {"id":"POST1","permalink_url":"https://example.invalid/post"}
-  if self.mode=="definite":raise Exception("META_DEFINITE: rejected")
+  if self.mode=="ok":return {"kind":"success","post_id":"POST1"}
+  if self.mode=="definite":return {"kind":"definite_failure","error":"rejected"}
   raise TimeoutError("timeout")
 class NullAudit:
  def write(self,*a,**k):return None
 def article(**kw):
  a={"article_guid":"TMNM-8766-TEST-0001","approved":True,"destination_page_id":TMNM_PAGE_ID,"message":"Phase 1 mock article"};a.update(kw);a["payload_sha256"]=payload_sha256(a);return a
-def pub(db,meta):return Publisher(str(db),meta,NullAudit(),TMNM_PAGE_ID)
+from tmnm_fb_publisher.core import Store
+def pub(db,meta):return Publisher(Store(db),meta)
 class T(unittest.TestCase):
  def test_approved(self):
   with tempfile.TemporaryDirectory() as d:
@@ -38,7 +39,7 @@ class T(unittest.TestCase):
    db=Path(d)/"x.db"; outer=self
    class Inspect(MockMeta):
     def publish(s,**kw):
-     con=sqlite3.connect(db);states=[r[0] for r in con.execute("select state from publish_records")];con.close();outer.assertIn("PENDING",states);return super().publish(**kw)
+     con=sqlite3.connect(db);states=[r[0] for r in con.execute("select state from publication")];con.close();outer.assertIn("PENDING",states);return super().publish(**kw)
    self.assertTrue(ArticlePoolPublishAction(pub(db,Inspect())).publish(article()).ok)
  def test_definite_ambiguous_no_blind_retry(self):
   for mode in ("definite","ambiguous"):
