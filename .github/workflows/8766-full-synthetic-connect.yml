@@ -4,6 +4,7 @@ on:
     branches: [ engineering/8766-phase2-meta-connect ]
     paths:
       - 'engineering/8766/test_full_synthetic_connect.py'
+      - 'engineering/8766/meta_connect.py'
       - '.github/workflows/8766-full-synthetic-connect.yml'
 jobs:
   validate:
