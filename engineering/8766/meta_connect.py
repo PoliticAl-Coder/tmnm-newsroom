@@ -45,7 +45,7 @@ class ProtectedTokenStore:
     def save(self,token):
         if os.name!="nt": raise RuntimeError("WINDOWS_DPAPI_REQUIRED")
         import win32crypt
-        blob=win32crypt.CryptProtectData(token.encode(),None,None,None,None,0)[1]
+        blob=win32crypt.CryptProtectData(token.encode(),None,None,None,None,0)
         os.makedirs(os.path.dirname(self.path),exist_ok=True)
         with open(self.path,"wb") as h:h.write(blob)
     def load(self):
