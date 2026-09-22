@@ -5,7 +5,7 @@ on:
     paths:
       - 'engineering/8766/test_full_synthetic_connect.py'
       - 'engineering/8766/meta_connect.py'
-      # bounded synthetic gate trigger
+      # bounded synthetic gate trigger final
       - '.github/workflows/8766-full-synthetic-connect.yml'
 jobs:
   validate:
