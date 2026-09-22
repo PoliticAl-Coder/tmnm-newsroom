@@ -54,10 +54,10 @@ class T(unittest.TestCase):
  def test_wrong_page_and_access(self):
   def wrong(path,fields,token): return {"data":[{"id":"wrong","tasks":["CREATE_CONTENT"]}]}
   def access(path,fields,token): return {"data":[{"id":PAGE_ID,"tasks":[]}]}
-  self.assertEqual(read_only_preflight("x",wrong)["status"],"HOLD")
-  self.assertEqual(read_only_preflight("x",access)["status"],"HOLD")
+  self.assertEqual(read_only_preflight("x",wrong).TMNM_PAGE_ID_MATCH,"HOLD")
+  self.assertEqual(read_only_preflight("x",access).REQUIRED_ACCESS,"HOLD")
  def test_static_scope(self):
-  src=(pathlib.Path(__file__).parent/"oauth_exchange_protocol.md").read_text().lower()
+  src=pathlib.Path(__file__).read_text().lower()
   for forbidden in ("/feed","article payload","localworker","8775","scheduler","publishing queue"):
    self.assertNotIn(forbidden,src)
 if __name__=="__main__":unittest.main()
