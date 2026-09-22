@@ -160,5 +160,6 @@ jobs:
 # owner-path rehearsal gate
 # authoritative Script ID deployed; execute real register/poll gate
 # rerun after authoritative META_REDIRECT_URI property repaste
+# execute V5 safe-diagnostic deployed gate
 
 # final V3 TypeError regression package rerun
