@@ -51,7 +51,7 @@ class CollectorTests(unittest.TestCase):
   import shutil; shutil.rmtree(self.root/"LocalWorker")
   with self.assertRaisesRegex(c.CollectorError,"MISSING_REQUIRED_SOURCE:LocalWorker"): c.collect(self.root)
  def test_empty_required_source_fails(self):
-  (self.root/"ControlRoom"/"app.py").unlink()
+  (self.root/"ControlRoom"/"app.py").unlink(); (self.root/"ControlRoom"/"publisher.py").unlink()
   with self.assertRaisesRegex(c.CollectorError,"MISSING_REQUIRED_SOURCE:ControlRoom"): c.collect(self.root)
  def test_undecodable_fails(self):
   self.f("ControlRoom/bad.py",data=b"\xff\xfe\x00\x80")
