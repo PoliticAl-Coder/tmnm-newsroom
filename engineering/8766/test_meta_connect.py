@@ -24,6 +24,24 @@ class T(unittest.TestCase):
   self.assertEqual(m.poll_handoff("TX_1234567890123456",post,timeout=1,interval=0),"OPAQUE_HANDOFF_123456")
   self.assertEqual(m.redeem_handoff("OPAQUE_HANDOFF_123456","TX_1234567890123456",post),"SYNTHETIC")
   self.assertEqual([x["action"] for x in calls],["register","poll","redeem"])
+ def test_complete_simulated_chain(self):
+  events=[]
+  def post(url,fields):
+   a=fields["action"];events.append(a)
+   if a=="register":return {"status":"PASS","state":"GOOGLE_STATE_TOKEN"}
+   if a=="redeem":return {"status":"PASS","credential":"SYNTHETIC_SECRET"}
+  def poll(tx,postfn):events.extend(["GOOGLE_CALLBACK_ENTERED","CODE_EXCHANGE_STARTED","CODE_EXCHANGE_PASS","HANDOFF_READY"]);return "OPAQUE_HANDOFF_123456"
+  class Store:
+   def __init__(self,path):pass
+   def save(self,t):events.append("DPAPI_PASS");self.t=t
+   def load(self):return "SYNTHETIC_SECRET"
+  def get(path,params,t):events.append("ME_ACCOUNTS_PASS");self.assertEqual(path,"/me/accounts");return {"data":[{"id":m.PAGE_ID,"tasks":["CREATE_CONTENT"]}]}
+  old=m.ProtectedTokenStore;m.ProtectedTokenStore=Store
+  try:
+   r=m.connect_facebook("x",open_browser=lambda u: events.append("BROWSER_OPEN_REQUESTED") or True,post=post,graph_get=get,poll=poll)
+   self.assertEqual(r.TMNM_PAGE_ID_MATCH,"PASS");events.append("PAGE_MATCH_PASS")
+   for x in ("BROWSER_OPEN_REQUESTED","GOOGLE_CALLBACK_ENTERED","CODE_EXCHANGE_STARTED","CODE_EXCHANGE_PASS","HANDOFF_READY","redeem","DPAPI_PASS","ME_ACCOUNTS_PASS","PAGE_MATCH_PASS"):self.assertIn(x,events)
+  finally:m.ProtectedTokenStore=old
  def test_real_connect_register_signature_regression(self):
   calls=[]
   def post(url,fields):
