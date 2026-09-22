@@ -29,3 +29,4 @@ class T(unittest.TestCase):
    q=pathlib.Path(d)/"meta_token.dpapi";st=m.ProtectedTokenStore(str(q));secret="SYNTHETIC_SECRET_ONLY_8766"
    st.save(secret);self.assertEqual(st.load(),secret);self.assertNotIn(secret,q.read_bytes().decode("latin1"))
 if __name__=="__main__":unittest.main()
+
