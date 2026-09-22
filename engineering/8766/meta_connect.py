@@ -1,13 +1,13 @@
 """TMNM 8766 real Meta CONNECT FACEBOOK path. GET-only discovery; no Facebook write endpoints."""
 from __future__ import annotations
-import http.server, json, os, secrets, threading, urllib.error, urllib.parse, urllib.request, webbrowser
+import json, os, secrets, time, urllib.error, urllib.parse, urllib.request, webbrowser
 from dataclasses import dataclass
 
 APP_ID="1754274758914441"
 PAGE_ID="1021402681056527"
 GRAPH_VERSION="v26.0"
 EXCHANGE_BASE="https://script.google.com/macros/s/AKfycbyyPnHf2HLe0rHs2U01QzxzUvsEiqBJ2DPV8Z1asX11AKqNjBtyfd844eVDYKyKNda1/exec"
-META_REDIRECT_URI=EXCHANGE_BASE+"?mode=oauth_callback"
+SCRIPT_ID="1VJG0_yjrKYhAtqXitJJ6s1iaBTwYY3OTIsY1VM-TTSuRXkNgH3OLgz33"\nMETA_REDIRECT_URI=f"https://script.google.com/macros/d/{SCRIPT_ID}/usercallback"
 AUTH_ENDPOINT=f"https://www.facebook.com/{GRAPH_VERSION}/dialog/oauth"
 SCOPES=("pages_show_list","pages_read_engagement","pages_manage_posts")
 LOCAL_HOST="127.0.0.1"
@@ -60,9 +60,20 @@ def build_authorization_url(state):
        "response_type":"code","scope":",".join(SCOPES)}
     return AUTH_ENDPOINT+"?"+urllib.parse.urlencode(q)
 
-def register_transaction(tx,state,post=_form_post):
-    r=post(EXCHANGE_BASE,{"action":"register","tx":tx,"state":state})
-    if r.get("status")!="PASS":raise RuntimeError("REGISTER_HOLD")
+def register_transaction(tx,post=_form_post):
+    r=post(EXCHANGE_BASE,{"action":"register","tx":tx})
+    state=r.get("state") if r.get("status")=="PASS" else None
+    if not isinstance(state,str) or not state:raise RuntimeError("REGISTER_HOLD")
+    return state
+
+def poll_handoff(tx,post=_form_post,timeout=180,interval=2):
+    end=time.time()+timeout
+    while time.time()<end:
+        r=post(EXCHANGE_BASE,{"action":"poll","tx":tx})
+        if r.get("status")=="PASS" and isinstance(r.get("handoff"),str) and r["handoff"]:return r["handoff"]
+        if r.get("status") not in ("WAIT","PASS"):raise RuntimeError("POLL_HOLD")
+        time.sleep(interval)
+    raise RuntimeError("POLL_TIMEOUT")
 
 def redeem_handoff(handoff,tx,post=_form_post):
     r=post(EXCHANGE_BASE,{"action":"redeem","handoff":handoff,"tx":tx})
@@ -70,31 +81,12 @@ def redeem_handoff(handoff,tx,post=_form_post):
     if not isinstance(token,str) or not token:raise RuntimeError("REDEEM_HOLD")
     return token
 
-def _receive_local_handoff(expected_tx,timeout=180):
-    result={};event=threading.Event()
-    class H(http.server.BaseHTTPRequestHandler):
-        def do_GET(self):
-            u=urllib.parse.urlsplit(self.path);q=urllib.parse.parse_qs(u.query,keep_blank_values=True)
-            ok=(u.path==LOCAL_PATH and len(q.get("handoff",[]))==1 and len(q.get("tx",[]))==1 and
-                secrets.compare_digest(q["tx"][0],expected_tx) and bool(q["handoff"][0]))
-            if ok:result["handoff"]=q["handoff"][0]
-            self.send_response(200 if ok else 400);self.send_header("Content-Type","text/plain; charset=utf-8");self.end_headers()
-            self.wfile.write(b"TMNM Facebook connection received. You can close this window." if ok else b"TMNM connection rejected.")
-            event.set()
-        def log_message(self,*args):pass
-    server=http.server.HTTPServer((LOCAL_HOST,LOCAL_PORT),H);server.timeout=1
-    end=__import__("time").time()+timeout
-    while not event.is_set() and __import__("time").time()<end:server.handle_request()
-    server.server_close()
-    if "handoff" not in result:raise RuntimeError("LOCAL_CALLBACK_HOLD")
-    return result["handoff"]
-
-def connect_facebook(token_path,open_browser=webbrowser.open,post=_form_post,graph_get=_graph_get,receive=_receive_local_handoff):
+def connect_facebook(token_path,open_browser=webbrowser.open,post=_form_post,graph_get=_graph_get,poll=poll_handoff):
     """One real owner-initiated connection. Meta Graph use remains GET-only."""
     tx=secrets.token_urlsafe(24);state=secrets.token_urlsafe(32)
     register_transaction(tx,state,post)
     if not open_browser(build_authorization_url(state)):raise RuntimeError("BROWSER_OPEN_HOLD")
-    handoff=receive(tx)
+    handoff=poll(tx,post)
     token=redeem_handoff(handoff,tx,post)
     store=ProtectedTokenStore(token_path);store.save(token)
     result=read_only_preflight(store.load(),graph_get)
