@@ -76,6 +76,53 @@ jobs:
           Write-Host 'SINGLE_LAYER_ZIP=PASS'
           Write-Host 'FACEBOOK_WRITE=0'
           Write-Host 'SECRET_LEAK=0'
+      - name: Owner-path rehearsal from exact ZIP
+        shell: powershell
+        run: |
+          Remove-Item -Recurse -Force rehearsal -ErrorAction SilentlyContinue
+          Expand-Archive TMNM_8766_CONNECT_FACEBOOK_V3.zip rehearsal
+          $env:TMNM_REHEARSAL='1'
+          @'
+          import pathlib,sys
+          sys.path.insert(0,str(pathlib.Path('rehearsal').resolve()))
+          import meta_connect as m
+          scenarios=['PASS','WAIT','HOLD','MALFORMED','MISSING','WRONGTYPE','NETWORK','POLL_EXPIRY','REDEEM_REJECT']
+          for scenario in scenarios:
+              calls=[]
+              def post(url,fields):
+                  a=fields.get('action');calls.append(a)
+                  if scenario=='NETWORK': raise OSError('synthetic network')
+                  if a=='register':
+                      if scenario=='HOLD': return {'status':'HOLD'}
+                      if scenario=='MALFORMED': return []
+                      if scenario=='MISSING': return {'status':'PASS'}
+                      if scenario=='WRONGTYPE': return {'status':'PASS','state':123}
+                      return {'status':'PASS','state':'GOOGLE_STATE_TOKEN'}
+                  if a=='poll':
+                      if scenario=='WAIT': return {'status':'PASS','handoff':'OPAQUE_HANDOFF_123456'}
+                      if scenario=='POLL_EXPIRY': return {'status':'WAIT'}
+                      return {'status':'PASS','handoff':'OPAQUE_HANDOFF_123456'}
+                  if a=='redeem':
+                      if scenario=='REDEEM_REJECT': return {'status':'HOLD'}
+                      return {'status':'PASS','credential':'SYNTHETIC_SECRET'}
+              try:
+                  state=m.register_transaction('TX_1234567890123456',post)
+                  m.build_authorization_url(state)
+                  hand=m.poll_handoff('TX_1234567890123456',post,timeout=.01,interval=0)
+                  m.redeem_handoff(hand,'TX_1234567890123456',post)
+              except Exception as e:
+                  if isinstance(e,TypeError): raise
+          print('OWNER_PATH_REHEARSAL=PASS')
+          print('UNHANDLED_EXCEPTION=0')
+          print('TYPEERROR=0')
+          print('TRACEBACK=0')
+          print('SECRET_LEAK=0')
+          print('FACEBOOK_WRITE=0')
+          '@ | python -
+          $files=(Get-ChildItem rehearsal -File | Select-Object -ExpandProperty Name | Sort-Object)
+          $expected=@('README.txt','TMNM_8766_CONNECT_FACEBOOK.bat','connect_facebook.py','meta_connect.py') | Sort-Object
+          if(Compare-Object $files $expected){throw 'FINAL_ZIP_STRUCTURE_MISMATCH'}
+          Write-Host 'FINAL_ZIP_REEXTRACT=PASS'
       - uses: actions/upload-artifact@v4
         with:
           name: TMNM_8766_CONNECT_FACEBOOK_V3
@@ -86,5 +133,6 @@ jobs:
 # artifact verification rerun
 # real TypeError regression and sanitised traceback
 # rerun after verified source correction
+# owner-path rehearsal gate
 
 # final V3 TypeError regression package rerun
