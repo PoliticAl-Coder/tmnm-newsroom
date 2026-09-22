@@ -94,9 +94,9 @@ def capture_file(path: Path, root: Path) -> tuple[bytes,str]:
     return data, text
 
 def walk_source_dir(base: Path, root: Path):
-    ensure_safe_path(base, root)
-    if not base.is_dir():
+    if not base.exists() or not base.is_dir():
         raise CollectorError("MISSING_REQUIRED_SOURCE:" + base.name)
+    ensure_safe_path(base, root)
     for current, dirs, files in os.walk(base, topdown=True, followlinks=False):
         cur = Path(current)
         ensure_safe_path(cur, root)
