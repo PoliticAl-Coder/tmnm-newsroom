@@ -2,7 +2,7 @@
 from __future__ import annotations
 import hashlib, json, re
 from dataclasses import dataclass
-from tmnm_fb_publisher.core import Publisher, PublishError
+from tmnm_fb_publisher.core import Publisher
 
 TMNM_PAGE_ID="1021402681056527"
 _GUID=re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$")
@@ -37,5 +37,5 @@ class ArticlePoolPublishAction:
             if article.get("payload_sha256")!=expected: raise ValueError("PAYLOAD_HASH_MISMATCH")
             out=self.publisher.publish(guid,True,TMNM_PAGE_ID,article["message"],expected)
             return ArticlePoolPublishResult(ok=out.get("state")=="PUBLISHED",state=out.get("state","HOLD"),article_guid=guid,attempt_id=out.get("attempt_id"),post_id=out.get("post_id"),error=out.get("error"),receipt=out)
-        except (ValueError,PublishError) as e:
+        except (ValueError, RuntimeError) as e:
             return ArticlePoolPublishResult(False,"HOLD",guid,error=str(e))
