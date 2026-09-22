@@ -19,23 +19,23 @@ from tmnm_fb_publisher.core import Store
 def pub(db,meta):return Publisher(Store(db),meta)
 class T(unittest.TestCase):
  def test_approved(self):
-  with tempfile.TemporaryDirectory() as d:
+  with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
    m=MockMeta();x=ArticlePoolPublishAction(pub(Path(d)/"x.db",m));a=article(approved=False);a["payload_sha256"]=payload_sha256(a);self.assertFalse(x.publish(a).ok);self.assertEqual(m.calls,0)
  def test_guid_destination_hash(self):
-  with tempfile.TemporaryDirectory() as d:
+  with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
    cases=[article(article_guid="bad"),article(destination_page_id="WRONG"),article()];cases[2]["payload_sha256"]="bad"
    for i,a in enumerate(cases):
     m=MockMeta();x=ArticlePoolPublishAction(pub(Path(d)/(str(i)+".db"),m));self.assertFalse(x.publish(a).ok);self.assertEqual(m.calls,0)
  def test_one_write_duplicate_restart_receipt(self):
-  with tempfile.TemporaryDirectory() as d:
+  with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
    db=Path(d)/"x.db";m=MockMeta();a=article();r=ArticlePoolPublishAction(pub(db,m)).publish(a);self.assertTrue(r.ok);self.assertEqual(r.state,"PUBLISHED");self.assertEqual(m.calls,1);self.assertNotIn("token",json.dumps(r.receipt).lower());ArticlePoolPublishAction(pub(db,m)).publish(a);self.assertEqual(m.calls,1)
  def test_concurrent_one_write(self):
-  with tempfile.TemporaryDirectory() as d:
+  with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
    db=Path(d)/"x.db";m=MockMeta();a=article();barrier=threading.Barrier(2)
    def f():barrier.wait();ArticlePoolPublishAction(pub(db,m)).publish(a)
    ts=[threading.Thread(target=f) for _ in range(2)];[t.start() for t in ts];[t.join() for t in ts];self.assertEqual(m.calls,1)
  def test_pending_is_durable_before_transport(self):
-  with tempfile.TemporaryDirectory() as d:
+  with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
    db=Path(d)/"x.db"; outer=self
    class Inspect(MockMeta):
     def publish(s,**kw):
@@ -43,6 +43,6 @@ class T(unittest.TestCase):
    self.assertTrue(ArticlePoolPublishAction(pub(db,Inspect())).publish(article()).ok)
  def test_definite_ambiguous_no_blind_retry(self):
   for mode in ("definite","ambiguous"):
-   with tempfile.TemporaryDirectory() as d:
+   with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
     db=Path(d)/"x.db";m=MockMeta(mode);x=ArticlePoolPublishAction(pub(db,m));x.publish(article());x.publish(article());self.assertEqual(m.calls,1)
 if __name__=="__main__":unittest.main()
