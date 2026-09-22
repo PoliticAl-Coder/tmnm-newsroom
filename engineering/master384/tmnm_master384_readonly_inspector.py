@@ -50,14 +50,14 @@ def content_hash(content)->str: return hashlib.sha256(canonical_files(content.ge
 def safe_error(e:Exception)->str:
     s=FORBIDDEN_TEXT.sub("[REDACTED]",str(e))
     return re.sub(r"[A-Za-z0-9_-]{40,}","[REDACTED]",s)[:400]
-def inspect(credential_path:Path, service_factory=None):
+def inspect(credential_path:Path, service_factory=None, credential_loader=None):
     out={"CURRENT_HEAD":"INDETERMINATE","CURRENT_DEPLOYED_VERSION":"INDETERMINATE","CURRENT_DEPLOYED_HASH":"INDETERMINATE",
          "V16B_COMPARISON":"INDETERMINATE","GOOGLE_AUTH":"FAIL","MUTATIONS":0,"SCRIPTS_RUN":0,"META_CALLS":0,
          "script_id":SCRIPT_ID,"deployment_id":DEPLOYMENT_ID}
-    if not credential_path.is_file(): out["error"]="CREDENTIAL_ABSENT"; return out,None
+    if not credential_path.is_file(): out["error"]="CREDENTIAL_ABSENT"; return out,None,None
     out["credential_file"]="PRESENT"
     try:
-        info=decode_credential(dpapi_unprotect(credential_path.read_bytes()))
+        info=(credential_loader or (lambda p: decode_credential(dpapi_unprotect(p.read_bytes()))))(credential_path)
         scopes=set(info.get("scopes") or info.get("scope","").split())
         # Fail closed: management scope must already exist; no incremental auth.
         if "https://www.googleapis.com/auth/script.projects" not in scopes:
@@ -94,8 +94,8 @@ def inspect(credential_path:Path, service_factory=None):
               "deployed_version":{"versionNumber":int(ver),"hash":dh,"files":deployed.get("files",[])}}
         return out,snap
     except Exception as e:
-        out["error"]=safe_error(e); return out,None
-def persist_evidence(payload:dict, info:dict, title:str):
+        out["error"]=safe_error(e); return out,None,None
+def persist_evidence(payload:dict, info:dict, title:str, drive_factory=None):
     from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request
     from googleapiclient.discovery import build
@@ -119,5 +119,5 @@ def main(argv=None):
     Path(a.out).write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding="utf-8")
     print("TMNM_MASTER384_STATUS="+("PASS" if result["GOOGLE_AUTH"]=="PASS" else "HOLD"))
     print("RESULT_FILE="+str(Path(a.out)))
-    return 0 if result["GOOGLE_AUTH"]=="PASS" else 2
+    return 0 if result["GOOGLE_AUTH"]=="PASS" and (not a.persist_drive or payload["drive_persistence"]["status"]=="PASS") else 2
 if __name__=="__main__": raise SystemExit(main())
