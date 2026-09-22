@@ -46,6 +46,15 @@ def has_reparse(path: Path) -> bool:
     rp = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
     return stat.S_ISLNK(st.st_mode) or bool(attrs & rp)
 
+def inspect_root_ancestors(path: Path) -> None:
+    cur=Path(os.path.abspath(path)); chain=[]
+    while True:
+        chain.append(cur)
+        if cur.parent==cur: break
+        cur=cur.parent
+    for p in reversed(chain):
+        if p.exists() and has_reparse(p): raise CollectorError("REPARSE_ANCESTOR_REJECTED:"+str(p))
+
 def ensure_safe_path(path: Path, root: Path) -> None:
     root_abs = Path(os.path.abspath(root))
     path_abs = Path(os.path.abspath(path))
