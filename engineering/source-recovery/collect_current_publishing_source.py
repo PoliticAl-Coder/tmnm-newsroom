@@ -152,7 +152,8 @@ def write_archive(captured, output_dir: Path) -> Path:
     name="TMNM_CURRENT_PUBLISHING_SOURCE_ONLY_"+uuid.uuid4().hex+".zip"
     final=output_dir/name; partial=output_dir/(name+".partial"); partial_created=False; final_created=False; manifest=[]
     try:
-        with zipfile.ZipFile(partial,"x",zipfile.ZIP_DEFLATED) as z:\n            partial_created=True
+        with zipfile.ZipFile(partial,"x",zipfile.ZIP_DEFLATED) as z:
+            partial_created=True
             for rel,data in captured:
                 arc=str(rel).replace("\\","/"); z.writestr(arc,data)
                 manifest.append({"path":arc,"sha256":digest(data),"size":len(data)})
