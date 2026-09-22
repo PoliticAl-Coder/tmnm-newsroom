@@ -150,15 +150,15 @@ def write_archive(captured, output_dir: Path) -> Path:
     if not output_dir.is_absolute(): raise CollectorError("OUTPUT_DIR_NOT_ABSOLUTE")
     output_dir.mkdir(parents=True, exist_ok=True)
     name="TMNM_CURRENT_PUBLISHING_SOURCE_ONLY_"+uuid.uuid4().hex+".zip"
-    final=output_dir/name; partial=output_dir/(name+".partial"); owned={partial,final}; manifest=[]
+    final=output_dir/name; partial=output_dir/(name+".partial"); partial_created=False; final_created=False; manifest=[]
     try:
-        with zipfile.ZipFile(partial,"x",zipfile.ZIP_DEFLATED) as z:
+        with zipfile.ZipFile(partial,"x",zipfile.ZIP_DEFLATED) as z:\n            partial_created=True
             for rel,data in captured:
                 arc=str(rel).replace("\\","/"); z.writestr(arc,data)
                 manifest.append({"path":arc,"sha256":digest(data),"size":len(data)})
             z.writestr("SOURCE_MANIFEST.json",json.dumps({"schema":"TMNM_SOURCE_RECOVERY_V3","files":sorted(manifest,key=lambda x:x["path"].lower()),"secret_scan":"PASS","capture_semantics":"scan/hash/archive same captured bytes"},indent=2).encode("utf-8"))
         if final.exists(): raise CollectorError("UNIQUE_OUTPUT_COLLISION")
-        partial.rename(final); return final
+        partial.rename(final); partial_created=False; final_created=True; return final
     except Exception:
         errors=[]
         for p in owned:
