@@ -120,4 +120,4 @@ def run(argv=None, inspect_fn=inspect, persist_fn=persist_evidence):
     print("TMNM_MASTER384_STATUS="+("PASS" if result["GOOGLE_AUTH"]=="PASS" else "HOLD"))
     print("RESULT_FILE="+str(Path(a.out)))
     return 0 if result["GOOGLE_AUTH"]=="PASS" and (not a.persist_drive or payload["drive_persistence"]["status"]=="PASS") else 2
-def main(argv=None): return run(argv)\nif __name__=="__main__": raise SystemExit(main())
+def main(argv=None): return run(argv)\nif __name__=="__main__": raise SystemExit(main())\n
