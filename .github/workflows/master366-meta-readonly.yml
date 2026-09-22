@@ -1,0 +1,24 @@
+name: MASTER366 Meta read-only static gate
+on:
+  push:
+    branches: [engineering/master366-meta-readonly]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - shell: cmd
+        run: python engineering\master366\test_static.py
+      - shell: powershell
+        run: |
+          $s=Get-Content engineering/master366/meta_readonly.py -Raw
+          if($s -match 'method="(POST|PUT|PATCH|DELETE)"'){throw 'write method present'}
+          if($s -match 'access_token='){throw 'token URL parameter present'}
+          Write-Host 'REAL_META_CALLS=ZERO'
+          Write-Host 'CREDENTIALS_USED=ZERO'
