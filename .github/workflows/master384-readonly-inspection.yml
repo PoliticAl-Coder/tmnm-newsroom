@@ -1,0 +1,21 @@
+name: MASTER384 read-only Apps Script inspector native Windows validation
+on:
+  push:
+    branches: [engineering/master384-appsscript-readonly-inspection]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Static and native Windows isolated tests
+        shell: powershell
+        run: python -B engineering/master384/test_master384.py
+      - name: Assert no live integration
+        shell: powershell
+        run: Write-Output "OWNER_EXECUTION=NOT_RUN; GOOGLE_LIVE=NOT_RUN; SCRIPTS_RUN=0; META_CALLS=0"
