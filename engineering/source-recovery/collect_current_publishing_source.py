@@ -16,13 +16,7 @@ OWNER8766_RE=re.compile(r"(?i)(8766|owner.?console)")
 ALLOWED = {".py",".js",".mjs",".cjs",".html",".htm",".css",".ps1",".cmd",".bat",".vbs",".txt",".md"}
 EXCLUDE_DIRS = {".git",".venv","venv","__pycache__","node_modules","secrets","secret","state","logs","log","cache","tmp","temp","downloads","evidence","results"}
 EXCLUDE_NAME_RE = re.compile(r"(?i)(token|credential|oauth|cookie|session|\.env(?:\.|$)|config(?:\.|$)|secret|keyring|keystore|database|\.db$|\.sqlite)")
-SECRET_ASSIGN_RE = re.compile(r"""(?ix)
-(?:"|\')?(?:access[_-]?token|refresh[_-]?token|client[_-]?secret|api[_-]?key|app[_-]?secret|
-private[_-]?key|password|passwd|pwd|authorization)
-\s*[:=]\s*["']([^"'\r
-]{8,})["']
-""")
-SECRET_VALUE_RE = re.compile(
+SECRET_ASSIGN_RE = re.compile(r"""(?ix)\n(?:"|\')?(?:access[_-]?token|refresh[_-]?token|client[_-]?secret|api[_-]?key|app[_-]?secret|private[_-]?key|password|passwd|pwd|authorization)(?:"|\')?\s*[:=]\s*["\']([^"\']{8,})["\']\n""")\nSECRET_VALUE_RE = re.compile(
     r"(?i)(?:ya29\.[A-Za-z0-9_.~+/=-]{10,}|1//[A-Za-z0-9_.~+/=-]{10,}|"
     r"GOCSPX-[A-Za-z0-9_-]{10,}|AIza[0-9A-Za-z_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|"
     r"sk-(?:live|proj)-[A-Za-z0-9_-]{16,}|Bearer\s+[A-Za-z0-9._~+/=-]{20,}|"
