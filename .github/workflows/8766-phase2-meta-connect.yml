@@ -165,3 +165,5 @@ jobs:
 # final V3 TypeError regression package rerun
 
 # bounded non-owner callback contract audit
+
+# bounded TTL and stage diagnostics gate
