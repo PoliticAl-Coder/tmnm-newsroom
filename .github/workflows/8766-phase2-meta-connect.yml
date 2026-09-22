@@ -28,3 +28,45 @@ jobs:
           echo FACEBOOK_WRITE=0
           echo REAL_META_CREDENTIAL=0
           echo SECRET_LEAK=0
+      - name: Build owner-safe connect package
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force owner-package | Out-Null
+          Copy-Item engineering/8766/meta_connect.py owner-package/meta_connect.py
+          @'
+          import pathlib,sys
+          from meta_connect import connect_facebook
+          out=pathlib.Path(__file__).with_name('TMNM_8766_CONNECT_RESULT.txt')
+          def main():
+              try:
+                  token=pathlib.Path.home()/'.tmnm8766'/'meta_token.dpapi'
+                  r=connect_facebook(str(token)).as_dict()
+                  lines=['TMNM 8766 CONNECT FACEBOOK','META_AUTH='+r['META_AUTH'],'TMNM_PAGE_ID_MATCH='+r['TMNM_PAGE_ID_MATCH'],'REQUIRED_ACCESS='+r['REQUIRED_ACCESS'],'FACEBOOK_WRITE=0']
+              except Exception as e:
+                  lines=['TMNM 8766 CONNECT FACEBOOK','META_AUTH=HOLD','TMNM_PAGE_ID_MATCH=HOLD','REQUIRED_ACCESS=HOLD','FACEBOOK_WRITE=0','ERROR='+type(e).__name__]
+              out.write_text('\n'.join(lines)+'\n',encoding='utf-8');print('\n'.join(lines));input('\nPress Enter to close...')
+          if __name__=='__main__':main()
+          '@ | Set-Content owner-package/connect_facebook.py -Encoding UTF8
+          @'
+          @echo off
+          title TMNM 8766 CONNECT FACEBOOK - GET ONLY
+          cd /d "%~dp0"
+          py -3 connect_facebook.py
+          if errorlevel 1 python connect_facebook.py
+          if errorlevel 1 pause
+          '@ | Set-Content owner-package/TMNM_8766_CONNECT_FACEBOOK.bat -Encoding ASCII
+          @'
+          TMNM 8766 FIRST REAL CONNECT FACEBOOK
+          Tested source head: f845c82b3f6a4bf6a9676082f36037d9541ea1ad
+          This package performs connection and GET-only Page discovery. It cannot publish.
+          Double-click TMNM_8766_CONNECT_FACEBOOK.bat.
+          Result is saved beside the launcher as TMNM_8766_CONNECT_RESULT.txt.
+          '@ | Set-Content owner-package/README.txt -Encoding UTF8
+          if (Select-String -Path owner-package/meta_connect.py -SimpleMatch '/feed') { throw 'WRITE_PATH_FOUND' }
+          if (Select-String -Path owner-package/meta_connect.py -SimpleMatch '8775') { throw 'LEGACY_FOUND' }
+          Compress-Archive -Path owner-package/* -DestinationPath TMNM_8766_CONNECT_FACEBOOK.zip -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TMNM_8766_CONNECT_FACEBOOK
+          path: TMNM_8766_CONNECT_FACEBOOK.zip
+          retention-days: 7
