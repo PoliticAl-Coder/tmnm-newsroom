@@ -2,7 +2,7 @@
 from __future__ import annotations
 import hashlib, json, re
 from dataclasses import dataclass
-from .core import Publisher, PublishError
+from tmnm_fb_publisher.core import Publisher, PublishError
 
 TMNM_PAGE_ID="1021402681056527"
 _GUID=re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$")
