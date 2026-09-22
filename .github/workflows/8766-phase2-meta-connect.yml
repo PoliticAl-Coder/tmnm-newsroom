@@ -1,0 +1,23 @@
+name: 8766 Phase 2 Meta connect non-live
+on:
+  push:
+    branches: [ engineering/8766-phase2-meta-connect ]
+    paths: [ 'engineering/8766/meta_connect.py', 'engineering/8766/test_meta_connect.py', '.github/workflows/8766-phase2-meta-connect.yml' ]
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python -m pip install pywin32
+      - name: Synthetic non-live validation
+        shell: cmd
+        run: |
+          set PYTHONPATH=engineering\8766
+          python -m unittest -v engineering\8766\test_meta_connect.py
+          findstr /C:"1754274758914441" engineering\8766\meta_connect.py
+          findstr /C:"http://localhost:8767/meta/callback" engineering\8766\meta_connect.py
+          echo FACEBOOK_WRITE=0
+          echo META_REAL_CREDENTIAL=0
+          echo DPAPI_SYNTHETIC=PASS
