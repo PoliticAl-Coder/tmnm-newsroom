@@ -57,6 +57,7 @@ def inspect_root_ancestors(path: Path) -> None:
 
 def ensure_safe_path(path: Path, root: Path) -> None:
     root_abs = Path(os.path.abspath(root))
+    inspect_root_ancestors(root_abs)
     path_abs = Path(os.path.abspath(path))
     try:
         path_abs.relative_to(root_abs)
@@ -126,87 +127,20 @@ def walk_source_dir(base: Path, root: Path):
             yield p
 
 def collect(root: Path) -> list[tuple[Path,bytes]]:
+    inspect_root_ancestors(root)
     ensure_safe_path(root, root)
-    captured=[]
-    seen_groups=set()
+    captured=[]; seen_groups=set(); publishing=False; owner8766=False
     for dirname in SOURCE_DIRS:
-        base=root/dirname
-        group_files=0
+        base=root/dirname; group_files=0
         for p in walk_source_dir(base, root):
-            data,_ = capture_file(p, root)
-            captured.append((p.relative_to(root), data))
-            group_files += 1
-        if group_files == 0:
-            raise CollectorError("MISSING_REQUIRED_SOURCE:" + dirname)
+            data,text = capture_file(p, root)
+            captured.append((p.relative_to(root), data)); group_files += 1
+            publishing = publishing or bool(PUBLISH_RE.search(text) or PUBLISH_RE.search(str(p)))
+            owner8766 = owner8766 or bool(OWNER8766_RE.search(text) or OWNER8766_RE.search(str(p)))
+        if group_files == 0: raise CollectorError("MISSING_REQUIRED_SOURCE:" + dirname)
         seen_groups.add(dirname)
-    if set(REQUIRED_GROUPS) - seen_groups or not captured:
-        raise CollectorError("EMPTY_OUTPUT")
+    if set(REQUIRED_GROUPS) - seen_groups or not captured: raise CollectorError("EMPTY_OUTPUT")
+    if not publishing: raise CollectorError("MISSING_PUBLISHING_ENTRYPOINT")
+    if not owner8766: raise CollectorError("MISSING_8766_OWNER_CONSOLE_SOURCE")
     return captured
 
-def write_archive(captured, output_dir: Path) -> Path:
-    if not captured:
-        raise CollectorError("EMPTY_OUTPUT")
-    if not output_dir.is_absolute():
-        raise CollectorError("OUTPUT_DIR_NOT_ABSOLUTE")
-    output_dir.mkdir(parents=True, exist_ok=True)
-    name="TMNM_CURRENT_PUBLISHING_SOURCE_ONLY_"+uuid.uuid4().hex+".zip"
-    final=output_dir/name
-    partial=output_dir/(name+".partial")
-    manifest=[]
-    try:
-        with zipfile.ZipFile(partial,"x",zipfile.ZIP_DEFLATED) as z:
-            for rel,data in captured:
-                arc=str(rel).replace("\\","/")
-                z.writestr(arc,data)
-                manifest.append({"path":arc,"sha256":digest(data),"size":len(data)})
-            z.writestr("SOURCE_MANIFEST.json",json.dumps({
-                "schema":"TMNM_SOURCE_RECOVERY_V2",
-                "files":sorted(manifest,key=lambda x:x["path"].lower()),
-                "secret_scan":"PASS",
-                "capture_semantics":"scan/hash/archive same captured bytes"
-            },indent=2).encode("utf-8"))
-        if final.exists(): raise CollectorError("UNIQUE_OUTPUT_COLLISION")
-        partial.rename(final)
-        return final
-    except Exception:
-        cleanup_error=None
-        if partial.exists():
-            try: partial.unlink()
-            except OSError as e: cleanup_error=e
-        if final.exists():
-            try: final.unlink()
-            except OSError as e: cleanup_error=cleanup_error or e
-        if cleanup_error:
-            raise CollectorError("CLEANUP_FAILED:"+repr(cleanup_error))
-        raise
-
-def main() -> int:
-    final=None
-    try:
-        if os.name != "nt":
-            raise CollectorError("NATIVE_WINDOWS_REQUIRED")
-        local=absolute_localappdata()
-        root=local/"TMNM"
-        if not root.is_dir():
-            raise CollectorError("TMNM_ROOT_MISSING")
-        ensure_safe_path(root, root)
-        output_dir=Path(tempfile.mkdtemp(prefix="TMNM_Source_Recovery_")).resolve()
-        try:
-            output_dir.relative_to(root.resolve())
-            raise CollectorError("OUTPUT_INSIDE_INSTALLED_TREE")
-        except ValueError:
-            pass
-        captured=collect(root)
-        final=write_archive(captured, output_dir)
-        print("STATUS=PASS")
-        print("FILES="+str(len(captured)))
-        print("ZIP="+str(final))
-        print("ZIP_SHA256="+digest(final.read_bytes()))
-        return 0
-    except Exception as e:
-        print("STATUS=FAIL")
-        print("ERROR="+str(e))
-        return 2
-
-if __name__=="__main__":
-    raise SystemExit(main())
