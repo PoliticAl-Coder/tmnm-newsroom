@@ -3,7 +3,7 @@ p=pathlib.Path(__file__).with_name("meta_connect.py");s=importlib.util.spec_from
 class T(unittest.TestCase):
  def test_exact_config_and_no_write(self):
   self.assertEqual(m.APP_ID,"1754274758914441");self.assertEqual(m.PAGE_ID,"1021402681056527")
-  self.assertEqual(m.META_REDIRECT_URI,m.EXCHANGE_BASE+"?action=callback")
+  self.assertEqual(m.META_REDIRECT_URI,m.EXCHANGE_BASE+"?mode=oauth_callback")
   self.assertEqual(m.AUTH_ENDPOINT,"https://www.facebook.com/v26.0/dialog/oauth")
   self.assertEqual(m.SCOPES,("pages_show_list","pages_read_engagement","pages_manage_posts"))
   src=p.read_text();self.assertNotIn("requests.post",src);self.assertNotIn("/feed",src);self.assertNotIn("method=\"POST\"",src.split("def _graph_get",1)[1])
