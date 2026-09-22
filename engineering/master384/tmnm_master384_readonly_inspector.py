@@ -95,8 +95,25 @@ def inspect(credential_path:Path, service_factory=None):
         return out,snap
     except Exception as e:
         out["error"]=safe_error(e); return out,None
+def persist_evidence(payload:dict, info:dict, title:str):
+    from google.oauth2.credentials import Credentials
+    from google.auth.transport.requests import Request
+    from googleapiclient.discovery import build
+    from googleapiclient.http import MediaInMemoryUpload
+    scopes=set(info.get("scopes") or info.get("scope","").split())
+    if not ({"https://www.googleapis.com/auth/drive","https://www.googleapis.com/auth/drive.file"} & scopes):
+        raise RuntimeError("REQUIRED_EXISTING_SCOPE_MISSING: drive evidence persistence")
+    creds=Credentials.from_authorized_user_info(info); creds.refresh(Request())
+    drive=build("drive","v3",credentials=creds,cache_discovery=False)
+    data=json.dumps(payload,ensure_ascii=False,indent=2).encode("utf-8")
+    media=MediaInMemoryUpload(data,mimetype="application/json",resumable=False)
+    created=drive.files().create(body={"name":title,"mimeType":"application/json"},media_body=media,fields="id,name").execute()
+    # Verify persistence by metadata readback only; do not echo credential data.
+    check=drive.files().get(fileId=created["id"],fields="id,name,size").execute()
+    return {"drive_file_id":check["id"],"drive_name":check["name"],"drive_size":check.get("size"),"verified":True}
+
 def main(argv=None):
-    p=argparse.ArgumentParser(); p.add_argument("--credential",required=True); p.add_argument("--out",required=True); a=p.parse_args(argv)
+    p=argparse.ArgumentParser(); p.add_argument("--credential",required=True); p.add_argument("--out",required=True); p.add_argument("--persist-drive",action="store_true"); a=p.parse_args(argv)
     result,snapshot=inspect(Path(a.credential))
     payload={"result":result,"snapshot":snapshot}
     Path(a.out).write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding="utf-8")
