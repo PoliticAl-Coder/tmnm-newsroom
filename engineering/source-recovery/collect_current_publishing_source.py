@@ -162,8 +162,8 @@ def write_archive(captured, output_dir: Path) -> Path:
         partial.rename(final); partial_created=False; final_created=True; return final
     except Exception:
         errors=[]
-        for p in owned:
-            if p.exists():
+        for p,owned_by_run in ((partial,partial_created),(final,final_created)):
+            if owned_by_run and p.exists():
                 try:p.unlink()
                 except OSError as e:errors.append(str(e))
         if errors: raise CollectorError("CLEANUP_FAILED:"+";".join(errors))
