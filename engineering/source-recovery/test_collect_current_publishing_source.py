@@ -88,6 +88,13 @@ class CollectorTests(unittest.TestCase):
   with patch.object(zipfile.ZipFile,"writestr",side_effect=OSError("write fail")):
    with self.assertRaises(OSError): c.write_archive(cap,out)
   self.assertEqual(list(out.glob("*.partial")),[])
+ def test_collision_never_deletes_preexisting_final(self):
+  cap=c.collect(self.root); out=self.base/"collision"; out.mkdir()
+  class U: hex="fixed"
+  existing=out/"TMNM_CURRENT_PUBLISHING_SOURCE_ONLY_fixed.zip"; existing.write_bytes(b"KEEP")
+  with patch.object(c.uuid,"uuid4",return_value=U()):
+   with self.assertRaisesRegex(c.CollectorError,"UNIQUE_OUTPUT_COLLISION"): c.write_archive(cap,out)
+  self.assertEqual(existing.read_bytes(),b"KEEP")
  def test_output_must_be_absolute(self):
   with self.assertRaisesRegex(c.CollectorError,"OUTPUT_DIR_NOT_ABSOLUTE"): c.write_archive(c.collect(self.root),pathlib.Path("relative"))
 
