@@ -123,6 +123,43 @@ jobs:
           $expected=@('README.txt','TMNM_8766_CONNECT_FACEBOOK.bat','connect_facebook.py','meta_connect.py') | Sort-Object
           if(Compare-Object $files $expected){throw 'FINAL_ZIP_STRUCTURE_MISMATCH'}
           Write-Host 'FINAL_ZIP_REEXTRACT=PASS'
+      - name: Real deployed Apps Script register-poll probe
+        shell: powershell
+        run: |
+          @'
+          import json,secrets,urllib.parse,urllib.request,urllib.error
+          url="https://script.google.com/macros/s/AKfycbyyPnHf2HLe0rHs2U01QzxzUvsEiqBJ2DPV8Z1asX11AKqNjBtyfd844eVDYKyKNda1/exec"
+          tx="PROBE_"+secrets.token_urlsafe(24)
+          def post(fields):
+              data=urllib.parse.urlencode(fields).encode()
+              req=urllib.request.Request(url,data=data,method="POST",headers={"Content-Type":"application/x-www-form-urlencoded"})
+              try:
+                  with urllib.request.urlopen(req,timeout=20) as r:
+                      raw=r.read().decode("utf-8","replace")
+                      print("HTTP_STATUS="+str(r.status))
+                      print("FINAL_HOST="+urllib.parse.urlsplit(r.geturl()).netloc)
+                      print("CONTENT_TYPE="+str(r.headers.get("Content-Type","")).split(";")[0])
+                      print("BODY_SHAPE="+("JSON_OBJECT" if raw.lstrip().startswith("{") else "NON_JSON"))
+                      return json.loads(raw)
+              except urllib.error.HTTPError as e:
+                  raw=e.read().decode("utf-8","replace")
+                  print("HTTP_STATUS="+str(e.code))
+                  print("FINAL_HOST="+urllib.parse.urlsplit(e.geturl()).netloc)
+                  print("CONTENT_TYPE="+str(e.headers.get("Content-Type","")).split(";")[0])
+                  print("BODY_SHAPE="+("JSON_OBJECT" if raw.lstrip().startswith("{") else "NON_JSON"))
+                  raise
+          r=post({"action":"register","tx":tx})
+          print("REGISTER_STATUS="+str(r.get("status")))
+          print("REGISTER_ERROR="+str(r.get("error","NONE")))
+          state=r.get("state")
+          print("STATE_PRESENT="+str(isinstance(state,str) and bool(state)))
+          if r.get("status")!="PASS" or not isinstance(state,str) or not state: raise SystemExit("REAL_REGISTER_NOT_PASS")
+          p=post({"action":"poll","tx":tx})
+          print("POLL_STATUS="+str(p.get("status")))
+          if p.get("status")!="WAIT": raise SystemExit("REAL_POLL_NOT_WAIT")
+          print("REAL_DEPLOYED_REGISTER_POLL=PASS")
+          print("FACEBOOK_WRITE=0")
+          '@ | python -
       - uses: actions/upload-artifact@v4
         with:
           name: TMNM_8766_CONNECT_FACEBOOK_V3
