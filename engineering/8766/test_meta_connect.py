@@ -21,6 +21,24 @@ class T(unittest.TestCase):
   self.assertEqual(m.poll_handoff("TX_1234567890123456",post,timeout=1,interval=0),"OPAQUE_HANDOFF_123456")
   self.assertEqual(m.redeem_handoff("OPAQUE_HANDOFF_123456","TX_1234567890123456",post),"SYNTHETIC")
   self.assertEqual([x["action"] for x in calls],["register","poll","redeem"])
+ def test_real_connect_register_signature_regression(self):
+  calls=[]
+  def post(url,fields):
+   calls.append(fields.copy())
+   if fields["action"]=="register":return {"status":"PASS","state":"GOOGLE_STATE_TOKEN"}
+   if fields["action"]=="redeem":return {"status":"PASS","credential":"SYNTHETIC_SECRET"}
+  def poll(tx,postfn):return "OPAQUE_HANDOFF_123456"
+  class Store:
+   def __init__(self,path):pass
+   def save(self,t):self.t=t
+   def load(self):return "SYNTHETIC_SECRET"
+  old=m.ProtectedTokenStore;m.ProtectedTokenStore=Store
+  try:
+   r=m.connect_facebook("x",open_browser=lambda u:True,post=post,graph_get=lambda *x:{"data":[{"id":m.PAGE_ID,"tasks":["CREATE_CONTENT"]}]},poll=poll)
+   self.assertEqual(r.META_AUTH,"PASS")
+   self.assertEqual(calls[0]["action"],"register")
+   self.assertEqual(set(calls[0]),{"action","tx"})
+  finally:m.ProtectedTokenStore=old
  def test_preflight_binding(self):
   calls=[]
   def get(path,params,t):calls.append((path,params));return {"data":[{"id":m.PAGE_ID,"access_token":"SYNTHETIC_PAGE_SECRET","tasks":["CREATE_CONTENT"]}]}
