@@ -35,7 +35,7 @@ class ArticlePoolPublishAction:
             if not isinstance(article.get("message"),str) or not article["message"].strip(): raise ValueError("MESSAGE_REQUIRED")
             expected=payload_sha256(article)
             if article.get("payload_sha256")!=expected: raise ValueError("PAYLOAD_HASH_MISMATCH")
-            out=self.publisher.publish(guid,True,TMNM_PAGE_ID,article["message"],expected)
+            out=self.publisher.publish({"article_guid":guid,"approved":True,"destination_page_id":TMNM_PAGE_ID,"message":article["message"]}).as_dict()
             return ArticlePoolPublishResult(ok=out.get("state")=="PUBLISHED",state=out.get("state","HOLD"),article_guid=guid,attempt_id=out.get("attempt_id"),post_id=out.get("post_id"),error=out.get("error"),receipt=out)
         except (ValueError, RuntimeError) as e:
             return ArticlePoolPublishResult(False,"HOLD",guid,error=str(e))
