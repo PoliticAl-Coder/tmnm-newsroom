@@ -1,0 +1,29 @@
+name: 8766 Phase 1 clean publisher
+on:
+  push:
+    branches: [engineering/8766-phase1-clean-publisher]
+jobs:
+  native-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Existing validated clean-core Windows gate
+        shell: cmd
+        run: |
+          cd engineering\master365
+          (echo.)|run_master365_windows.cmd
+      - name: Fresh 8766 Article Pool integration tests
+        shell: cmd
+        run: |
+          set PYTHONPATH=engineering\master365
+          python -m unittest -v engineering\8766\test_article_pool_publish.py
+      - name: Phase-1 static no-live guard
+        shell: powershell
+        run: |
+          $s=Get-Content engineering/8766/article_pool_publish.py -Raw
+          foreach($x in @('graph.facebook','requests.post','urllib','access_token','LocalWorker','AppsScript','scripts.run')){if($s.Contains($x)){throw "Forbidden live/legacy surface: $x"}}
+          Write-Host "FACEBOOK_WRITE=0"
+          Write-Host "META_LIVE=0"
+          Write-Host "8766_ARTICLE_POOL_ADAPTER=PASS"
