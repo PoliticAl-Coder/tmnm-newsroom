@@ -67,7 +67,7 @@ def register_transaction(tx,post=_form_post):
     if not isinstance(state,str) or not state:raise RuntimeError("REGISTER_HOLD")
     return state
 
-def poll_handoff(tx,post=_form_post,timeout=180,interval=2):
+def poll_handoff(tx,post=_form_post,timeout=300,interval=2):
     end=time.time()+timeout
     while time.time()<end:
         r=post(EXCHANGE_BASE,{"action":"poll","tx":tx})
