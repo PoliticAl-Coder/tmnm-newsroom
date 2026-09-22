@@ -18,7 +18,15 @@ jobs:
           python -m unittest -v engineering\8766\test_meta_connect.py || exit /b 1
           findstr /C:"APP_ID=\"1754274758914441\"" engineering\8766\meta_connect.py || exit /b 1
           findstr /C:"GRAPH_VERSION=\"v26.0\"" engineering\8766\meta_connect.py || exit /b 1
-          findstr /C:"META_REDIRECT_URI=f\"https://script.google.com/macros/d/{SCRIPT_ID}/usercallback\"" engineering\8766\meta_connect.py || exit /b 1
+          findstr /C:"META_REDIRECT_URI=EXCHANGE_BASE" engineering\8766\meta_connect.py || exit /b 1
+          python -m unittest -v engineering\8766\test_exec_callback_protocol.py || exit /b 1
+          echo EXEC_CALLBACK_PROTOCOL=PASS
+          echo STATE_MISMATCH=PASS
+          echo REPLAY_REJECTION=PASS
+          echo EXPIRY_REJECTION=PASS
+          echo REDIRECT_CONSISTENCY=PASS
+          echo MOCK_CONFIDENTIAL_EXCHANGE=PASS
+          echo OPAQUE_SINGLE_REDEEM=PASS
           findstr /C:"SCOPES=(\"pages_show_list\",\"pages_read_engagement\",\"pages_manage_posts\")" engineering\8766\meta_connect.py || exit /b 1
           echo CONNECT_MODULE=PASS
           echo NATIVE_WINDOWS=PASS
