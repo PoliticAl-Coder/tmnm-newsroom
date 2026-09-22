@@ -1,0 +1,24 @@
+name: 8766 synthetic confidential exchange
+on:
+  push:
+    branches: [ engineering/8766-phase2-meta-connect ]
+    paths:
+      - 'engineering/8766/test_full_synthetic_connect.py'
+      - '.github/workflows/8766-full-synthetic-connect.yml'
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python -m pip install pywin32
+      - name: Complete synthetic owner connect
+        shell: cmd
+        run: |
+          set PYTHONPATH=engineering\8766
+          python -m unittest -v engineering\8766\test_full_synthetic_connect.py || exit /b 1
+          echo FULL_SYNTHETIC_CONNECT=PASS
+          echo FACEBOOK_WRITE=0
+          echo REAL_META_AUTH=0
+          echo REAL_APP_SECRET=0
