@@ -67,6 +67,15 @@ class CollectorTests(unittest.TestCase):
    kw["onerror"](OSError("walk denied")); return iter(())
   with patch.object(c.os,"walk",side_effect=fake_walk):
    with self.assertRaisesRegex(c.CollectorError,"TRAVERSAL_ERROR"): c.collect(self.root)
+ def test_requires_publishing_entrypoint(self):
+  (self.root/"ControlRoom"/"publisher.py").write_text("print('plain')",encoding="utf-8")
+  with self.assertRaisesRegex(c.CollectorError,"MISSING_PUBLISHING_ENTRYPOINT"): c.collect(self.root)
+ def test_requires_8766_source(self):
+  (self.root/"LocalWorker"/"worker.py").write_text("print('plain')",encoding="utf-8")
+  with self.assertRaisesRegex(c.CollectorError,"MISSING_8766_OWNER_CONSOLE_SOURCE"): c.collect(self.root)
+ def test_root_ancestor_reparse_is_checked(self):
+  with patch.object(c,"has_reparse",side_effect=lambda p: p==self.base):
+   with self.assertRaisesRegex(c.CollectorError,"REPARSE_ANCESTOR_REJECTED"): c.collect(self.root)
  def test_config_secret_filename_is_never_read(self):
   p=self.f("ControlRoom/config.json","client_secret='REAL_SECRET_123456789'")
   self.assertTrue(c.EXCLUDE_NAME_RE.search(p.name))
