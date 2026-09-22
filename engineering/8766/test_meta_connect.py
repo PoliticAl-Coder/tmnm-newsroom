@@ -3,7 +3,7 @@ p=pathlib.Path(__file__).with_name("meta_connect.py");s=importlib.util.spec_from
 class T(unittest.TestCase):
  def test_exact_config_and_no_write(self):
   self.assertEqual(m.APP_ID,"1754274758914441");self.assertEqual(m.PAGE_ID,"1021402681056527")
-  self.assertEqual(m.META_REDIRECT_URI,m.META_REDIRECT_URI)
+  self.assertEqual(m.META_REDIRECT_URI,"https://script.google.com/macros/d/"+m.SCRIPT_ID+"/usercallback")
   self.assertEqual(m.AUTH_ENDPOINT,"https://www.facebook.com/v26.0/dialog/oauth")
   self.assertEqual(m.SCOPES,("pages_show_list","pages_read_engagement","pages_manage_posts"))
   src=p.read_text();self.assertNotIn("requests.post",src);self.assertNotIn("/feed",src);self.assertNotIn("method=\"POST\"",src.split("def _graph_get",1)[1])
@@ -12,9 +12,15 @@ class T(unittest.TestCase):
   self.assertEqual(q["client_id"],[m.APP_ID]);self.assertEqual(q["redirect_uri"],[m.META_REDIRECT_URI]);self.assertEqual(q["scope"],[",".join(m.SCOPES)]);self.assertEqual(q["state"],[state])
  def test_exchange_contract(self):
   calls=[]
-  def post(url,fields): calls.append(fields.copy());return {"status":"PASS","credential":"SYNTHETIC"}
-  m.register_transaction("TX","STATE",post);self.assertEqual(m.redeem_handoff("H","TX",post),"SYNTHETIC")
-  self.assertEqual(calls[0]["action"],"register");self.assertEqual(calls[1]["action"],"redeem")
+  def post(url,fields):
+   calls.append(fields.copy())
+   if fields["action"]=="register":return {"status":"PASS","state":"GOOGLE_STATE_TOKEN"}
+   if fields["action"]=="poll":return {"status":"PASS","handoff":"OPAQUE_HANDOFF_123456"}
+   if fields["action"]=="redeem":return {"status":"PASS","credential":"SYNTHETIC"}
+  self.assertEqual(m.register_transaction("TX_1234567890123456",post),"GOOGLE_STATE_TOKEN")
+  self.assertEqual(m.poll_handoff("TX_1234567890123456",post,timeout=1,interval=0),"OPAQUE_HANDOFF_123456")
+  self.assertEqual(m.redeem_handoff("OPAQUE_HANDOFF_123456","TX_1234567890123456",post),"SYNTHETIC")
+  self.assertEqual([x["action"] for x in calls],["register","poll","redeem"])
  def test_preflight_binding(self):
   calls=[]
   def get(path,params,t):calls.append((path,params));return {"data":[{"id":m.PAGE_ID,"access_token":"SYNTHETIC_PAGE_SECRET","tasks":["CREATE_CONTENT"]}]}
