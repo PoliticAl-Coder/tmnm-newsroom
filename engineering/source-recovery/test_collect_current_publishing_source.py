@@ -12,7 +12,7 @@ class CollectorTests(unittest.TestCase):
   self.root=self.base/"Local App Data"/"TMNM"; self.root.mkdir(parents=True)
   (self.root/"ControlRoom").mkdir(); (self.root/"LocalWorker").mkdir()
   self.f("ControlRoom/app.py","print('control')")
-  self.f("LocalWorker/worker.py","print('worker')")
+  self.f("LocalWorker/worker.py","print('worker') # owner console 8766")\n  self.f("ControlRoom/publisher.py","facebook publisher")
  def tearDown(self): self.t.cleanup()
  def f(self,rel,text=None,data=None):
   p=self.root/rel; p.parent.mkdir(parents=True,exist_ok=True)
@@ -58,7 +58,7 @@ class CollectorTests(unittest.TestCase):
  def test_secret_api_key_assignment_fails(self):
   self.f("ControlRoom/key.py","api_key='REAL_API_KEY_1234567890'")
   with self.assertRaisesRegex(c.CollectorError,"SECRET_ASSIGNMENT"): c.collect(self.root)
- def test_config_secret_filename_is_never_read(self):
+ def test_quoted_dictionary_api_key_fails(self):\n  self.f("ControlRoom/dictkey.py",'x={"api_key": "abcdefgh12345678"}')\n  with self.assertRaisesRegex(c.CollectorError,"SECRET_ASSIGNMENT"): c.collect(self.root)\n def test_traversal_error_callback_raises(self):\n  def fake_walk(*a,**kw):\n   kw["onerror"](OSError("walk denied")); return iter(())\n  with patch.object(c.os,"walk",side_effect=fake_walk):\n   with self.assertRaisesRegex(c.CollectorError,"TRAVERSAL_ERROR"): c.collect(self.root)\n def test_config_secret_filename_is_never_read(self):
   p=self.f("ControlRoom/config.json","client_secret='REAL_SECRET_123456789'")
   self.assertTrue(c.EXCLUDE_NAME_RE.search(p.name))
  def test_unique_output_never_deletes_existing_zip(self):
