@@ -1,0 +1,20 @@
+name: Source collector isolated tests
+on:
+  push:
+    branches: [engineering/master342-windows-validation]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  collector:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Run isolated collector tests
+        run: python -B engineering/source-recovery/test_collect_current_publishing_source.py
