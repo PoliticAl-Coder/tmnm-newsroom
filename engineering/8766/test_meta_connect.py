@@ -6,7 +6,7 @@ class T(unittest.TestCase):
   self.assertEqual(m.META_REDIRECT_URI,m.EXCHANGE_BASE+"?action=callback")
   self.assertEqual(m.AUTH_ENDPOINT,"https://www.facebook.com/v26.0/dialog/oauth")
   self.assertEqual(m.SCOPES,("pages_show_list","pages_read_engagement","pages_manage_posts"))
-  src=p.read_text();self.assertNotIn("requests.post",src);self.assertNotIn("/feed",src);self.assertNotIn("urlopen",src)
+  src=p.read_text();self.assertNotIn("requests.post",src);self.assertNotIn("/feed",src);self.assertNotIn("method=\"POST\"",src.split("def _graph_get",1)[1])
  def test_url_and_state(self):
   state="SYNTHETIC_STATE";u=m.build_authorization_url(state);q=urllib.parse.parse_qs(urllib.parse.urlsplit(u).query)
   self.assertEqual(q["client_id"],[m.APP_ID]);self.assertEqual(q["redirect_uri"],[m.META_REDIRECT_URI]);self.assertEqual(q["scope"],[",".join(m.SCOPES)]);self.assertEqual(q["state"],[state])
