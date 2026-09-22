@@ -10,12 +10,12 @@ from pathlib import Path
 
 MAX_BYTES = 2_000_000
 SOURCE_DIRS = ("ControlRoom", "LocalWorker")
-REQUIRED_GROUPS = ("ControlRoom", "LocalWorker")
+REQUIRED_GROUPS = ("ControlRoom", "LocalWorker")\nPUBLISH_RE=re.compile(r"(?i)(facebook|publisher|publish_once|payload_for|validate_actionable|canonical_snapshot|workflowstore)")\nOWNER8766_RE=re.compile(r"(?i)(8766|owner.?console)")
 ALLOWED = {".py",".js",".mjs",".cjs",".html",".htm",".css",".ps1",".cmd",".bat",".vbs",".txt",".md"}
 EXCLUDE_DIRS = {".git",".venv","venv","__pycache__","node_modules","secrets","secret","state","logs","log","cache","tmp","temp","downloads","evidence","results"}
 EXCLUDE_NAME_RE = re.compile(r"(?i)(token|credential|oauth|cookie|session|\.env(?:\.|$)|config(?:\.|$)|secret|keyring|keystore|database|\.db$|\.sqlite)")
 SECRET_ASSIGN_RE = re.compile(r"""(?ix)
-(?:access[_-]?token|refresh[_-]?token|client[_-]?secret|api[_-]?key|app[_-]?secret|
+(?:"|\')?(?:access[_-]?token|refresh[_-]?token|client[_-]?secret|api[_-]?key|app[_-]?secret|
 private[_-]?key|password|passwd|pwd|authorization)
 \s*[:=]\s*["']([^"'\r\n]{8,})["']
 """)
@@ -97,7 +97,7 @@ def walk_source_dir(base: Path, root: Path):
     if not base.exists() or not base.is_dir():
         raise CollectorError("MISSING_REQUIRED_SOURCE:" + base.name)
     ensure_safe_path(base, root)
-    for current, dirs, files in os.walk(base, topdown=True, followlinks=False):
+    def walk_error(e): raise CollectorError("TRAVERSAL_ERROR:"+str(e))\n    for current, dirs, files in os.walk(base, topdown=True, followlinks=False, onerror=walk_error):
         cur = Path(current)
         ensure_safe_path(cur, root)
         kept=[]
@@ -155,7 +155,7 @@ def write_archive(captured, output_dir: Path) -> Path:
                 "secret_scan":"PASS",
                 "capture_semantics":"scan/hash/archive same captured bytes"
             },indent=2).encode("utf-8"))
-        os.replace(partial, final)
+        if final.exists(): raise CollectorError("UNIQUE_OUTPUT_COLLISION")\n        partial.rename(final)
         return final
     except Exception:
         cleanup_error=None
@@ -179,7 +179,7 @@ def main() -> int:
         if not root.is_dir():
             raise CollectorError("TMNM_ROOT_MISSING")
         ensure_safe_path(root, root)
-        output_dir=Path(tempfile.gettempdir()).resolve()/"TMNM_Source_Recovery_Output"
+        output_dir=Path(tempfile.mkdtemp(prefix="TMNM_Source_Recovery_")).resolve()
         try:
             output_dir.relative_to(root.resolve())
             raise CollectorError("OUTPUT_INSIDE_INSTALLED_TREE")
