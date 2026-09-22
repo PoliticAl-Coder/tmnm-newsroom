@@ -84,9 +84,7 @@ def redeem_handoff(handoff,tx,post=_form_post):
 
 def connect_facebook(token_path,open_browser=webbrowser.open,post=_form_post,graph_get=_graph_get,poll=poll_handoff):
     """One real owner-initiated connection. Meta Graph use remains GET-only."""
-    tx=secrets.token_urlsafe(24);state=secrets.token_urlsafe(32)
-    register_transaction(tx,state,post)
-    if not open_browser(build_authorization_url(state)):raise RuntimeError("BROWSER_OPEN_HOLD")
+    tx=secrets.token_urlsafe(24)\n    state=register_transaction(tx,post)\n    if not open_browser(build_authorization_url(state)):raise RuntimeError("BROWSER_OPEN_HOLD")
     handoff=poll(tx,post)
     token=redeem_handoff(handoff,tx,post)
     store=ProtectedTokenStore(token_path);store.save(token)
