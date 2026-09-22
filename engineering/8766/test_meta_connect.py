@@ -7,16 +7,7 @@ class T(unittest.TestCase):
   self.assertEqual(m.AUTH_ENDPOINT,"https://www.facebook.com/v26.0/dialog/oauth")
   self.assertEqual(m.SCOPES,("pages_show_list","pages_read_engagement","pages_manage_posts"))
   src=p.read_text();self.assertNotIn("requests.post",src);self.assertNotIn("/feed",src);self.assertNotIn("urlopen",src)
- def test_url_and_state(self):
-  g=m.OAuthGuard();u=g.begin();q=urllib.parse.parse_qs(urllib.parse.urlsplit(u).query)
-  self.assertEqual(q["client_id"],[m.APP_ID]);self.assertEqual(q["redirect_uri"],[m.REDIRECT_URI]);self.assertEqual(q["scope"],[",".join(m.SCOPES)])
-  self.assertEqual(g.accept_callback("/meta/callback?state="+q["state"][0]+"&code=SYNTHETIC_CODE"),"SYNTHETIC_CODE")
- def test_callback_rejections(self):
-  cases=[("/wrong?state={s}&code=x","UNEXPECTED_CALLBACK_PATH"),("/meta/callback?code=x","MISSING_STATE"),("/meta/callback?state=WRONG&code=x","STATE_MISMATCH"),("/meta/callback?state={s}","MISSING_AUTHORIZATION_RESULT"),("/meta/callback?state={s}&code=x&junk=y","MALFORMED_CALLBACK")]
-  for target,msg in cases:
-   g=m.OAuthGuard();u=g.begin();st=urllib.parse.parse_qs(urllib.parse.urlsplit(u).query)["state"][0]
-   with self.assertRaisesRegex(ValueError,msg):g.accept_callback(target.format(s=st))
- def test_preflight_binding(self):
+ def test_url_and_state(self):\n  state="SYNTHETIC_STATE";u=m.build_authorization_url(state);q=urllib.parse.parse_qs(urllib.parse.urlsplit(u).query)\n  self.assertEqual(q["client_id"],[m.APP_ID]);self.assertEqual(q["redirect_uri"],[m.META_REDIRECT_URI]);self.assertEqual(q["scope"],[",".join(m.SCOPES)]);self.assertEqual(q["state"],[state])\n def test_exchange_contract(self):\n  calls=[]\n  def post(url,fields): calls.append(fields.copy());return {"status":"PASS","credential":"SYNTHETIC"}\n  m.register_transaction("TX","STATE",post);self.assertEqual(m.redeem_handoff("H","TX",post),"SYNTHETIC")\n  self.assertEqual(calls[0]["action"],"register");self.assertEqual(calls[1]["action"],"redeem")\n def test_preflight_binding(self):
   calls=[]
   def get(path,params,t):calls.append((path,params));return {"data":[{"id":m.PAGE_ID,"access_token":"SYNTHETIC_PAGE_SECRET","tasks":["CREATE_CONTENT"]}]}
   r=m.read_only_preflight("SYNTHETIC_USER_SECRET",get);self.assertEqual(r.as_dict(),{"META_AUTH":"PASS","TMNM_PAGE_ID_MATCH":"PASS","REQUIRED_ACCESS":"PASS","FACEBOOK_WRITE":0})
