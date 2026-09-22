@@ -68,7 +68,7 @@ class CollectorTests(unittest.TestCase):
   with patch.object(c.os,"walk",side_effect=fake_walk):
    with self.assertRaisesRegex(c.CollectorError,"TRAVERSAL_ERROR"): c.collect(self.root)
  def test_requires_publishing_entrypoint(self):
-  (self.root/"ControlRoom"/"publisher.py").write_text("print('plain')",encoding="utf-8")
+  (self.root/"ControlRoom"/"publisher.py").unlink(); self.f("ControlRoom/plain.py","print('plain')")
   with self.assertRaisesRegex(c.CollectorError,"MISSING_PUBLISHING_ENTRYPOINT"): c.collect(self.root)
  def test_requires_8766_source(self):
   (self.root/"LocalWorker"/"worker.py").write_text("print('plain')",encoding="utf-8")
