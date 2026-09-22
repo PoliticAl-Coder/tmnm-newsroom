@@ -18,7 +18,7 @@ jobs:
           python -m unittest -v engineering\8766\test_meta_connect.py || exit /b 1
           findstr /C:"APP_ID=\"1754274758914441\"" engineering\8766\meta_connect.py || exit /b 1
           findstr /C:"GRAPH_VERSION=\"v26.0\"" engineering\8766\meta_connect.py || exit /b 1
-          findstr /C:"META_REDIRECT_URI=EXCHANGE_BASE+\"?mode=oauth_callback\"" engineering\8766\meta_connect.py || exit /b 1
+          findstr /C:"META_REDIRECT_URI=f\"https://script.google.com/macros/d/{SCRIPT_ID}/usercallback\"" engineering\8766\meta_connect.py || exit /b 1
           findstr /C:"SCOPES=(\"pages_show_list\",\"pages_read_engagement\",\"pages_manage_posts\")" engineering\8766\meta_connect.py || exit /b 1
           echo CONNECT_MODULE=PASS
           echo NATIVE_WINDOWS=PASS
@@ -64,7 +64,21 @@ jobs:
           '@ | Set-Content owner-package/README.txt -Encoding UTF8
           if (Select-String -Path owner-package/meta_connect.py -SimpleMatch '/feed') { throw 'WRITE_PATH_FOUND' }
           if (Select-String -Path owner-package/meta_connect.py -SimpleMatch '8775') { throw 'LEGACY_FOUND' }
-          Compress-Archive -Path owner-package/* -DestinationPath TMNM_8766_CONNECT_FACEBOOK.zip -Force
+          Compress-Archive -Path owner-package/* -DestinationPath TMNM_8766_CONNECT_FACEBOOK_V3.zip -Force
+          $z=tar -tf TMNM_8766_CONNECT_FACEBOOK_V3.zip
+          $expected=@('TMNM_8766_CONNECT_FACEBOOK.bat','connect_facebook.py','meta_connect.py','README.txt')
+          foreach($x in $expected){ if(-not ($z -contains $x)){ throw "MISSING_TOP_LEVEL_$x" } }
+          if($z | Where-Object { $_ -match '\\.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TMNM_8766_CONNECT_FACEBOOK
+          path: TMNM_8766_CONNECT_FACEBOOK_V3.zip
+          retention-days: 7
+ }) { throw 'NESTED_ZIP_FOUND' }
+          Write-Host 'PACKAGE_GATE=PASS'
+          Write-Host 'SINGLE_LAYER_ZIP=PASS'
+          Write-Host 'FACEBOOK_WRITE=0'
+          Write-Host 'SECRET_LEAK=0'
       - uses: actions/upload-artifact@v4
         with:
           name: TMNM_8766_CONNECT_FACEBOOK
