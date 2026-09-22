@@ -56,4 +56,9 @@ class T(unittest.TestCase):
   def access(path,fields,token): return {"data":[{"id":PAGE_ID,"tasks":[]}]}
   self.assertEqual(read_only_preflight("x",wrong).TMNM_PAGE_ID_MATCH,"HOLD")
   self.assertEqual(read_only_preflight("x",access).REQUIRED_ACCESS,"HOLD")
- def test_static_scope(self):\n  src=(pathlib.Path(__file__).parent/"meta_connect.py").read_text().lower()\n  forbidden_terms=("/"+"feed","article payload","localworker","8775","scheduler","publishing queue")\n  for forbidden in forbidden_terms:\n   self.assertNotIn(forbidden,src)\nif __name__=="__main__":unittest.main()
+ def test_static_scope(self):
+  src=(pathlib.Path(__file__).parent/"meta_connect.py").read_text().lower()
+  forbidden_terms=("/"+"feed","article payload","localworker","8775","scheduler","publishing queue")
+  for forbidden in forbidden_terms:
+   self.assertNotIn(forbidden,src)
+if __name__=="__main__":unittest.main()
