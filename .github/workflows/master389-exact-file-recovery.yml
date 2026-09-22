@@ -1,0 +1,23 @@
+name: MASTER389 exact-file recovery validation
+on:
+  push:
+    branches: [engineering/master389-exact-file-recovery]
+jobs:
+  native-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Tests
+        shell: pwsh
+        run: |
+          cd engineering/master389
+          python -m unittest -v test_master389.py
+      - name: Static forbidden surfaces
+        shell: pwsh
+        run: |
+          $s=Get-Content engineering/master389/tmnm_master389_exact_file_recovery.py -Raw
+          $bad=@('scripts.run','projects().getContent','deployments().get','versions().get','Start-ScheduledTask','graph.facebook','publish-now')
+          foreach($x in $bad){if($s.Contains($x)){throw "forbidden $x"}}
+          "SCRIPTS_RUN=0; APPS_SCRIPT=0; META=0; QUEUE_TASK_OPS=0; OWNER_EXECUTION=0"
