@@ -27,7 +27,7 @@ class T(unittest.TestCase):
   tok=g.redeem(h,t);self.assertNotIn(h,g.h)
   with tempfile.TemporaryDirectory() as d:
    p=pathlib.Path(d)/"x.dpapi";ProtectedTokenStore(p).save(tok);self.assertNotIn(tok.encode(),p.read_bytes());loaded=ProtectedTokenStore(p).load()
-   r=read_only_preflight(loaded,self.good_graph);self.assertEqual(r["status"],"READY");self.assertEqual(r["facebook_write"],0)
+   r=read_only_preflight(loaded,self.good_graph);self.assertEqual(r.META_AUTH,"PASS");self.assertEqual(r.TMNM_PAGE_ID_MATCH,"PASS");self.assertEqual(r.REQUIRED_ACCESS,"PASS");self.assertEqual(r.FACEBOOK_WRITE,0)
   with self.assertRaises(ValueError):g.redeem(h,t)
  def test_state_failures(self):
   for bad in ("wrong",""):
