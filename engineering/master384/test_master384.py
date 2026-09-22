@@ -20,7 +20,8 @@ class Tests(unittest.TestCase):
   tree=ast.parse(SRC)
   attrs={n.attr for n in ast.walk(tree) if isinstance(n,ast.Attribute)}
   self.assertNotIn("run",attrs)
-  for x in ("updateContent","updateDeployment","createVersion","deleteDeployment"): self.assertNotIn(x,attrs)\n  self.assertNotIn("scripts().run",SRC)
+  for x in ("updateContent","updateDeployment","createVersion","deleteDeployment"): self.assertNotIn(x,attrs)
+  self.assertNotIn("scripts().run",SRC)
   self.assertNotIn("UrlFetchApp",SRC); self.assertNotIn("PropertiesService",SRC)
   self.assertNotIn("facebook.com",SRC.lower()); self.assertNotIn("graph.facebook",SRC.lower())
  def test_only_management_reads(self):
