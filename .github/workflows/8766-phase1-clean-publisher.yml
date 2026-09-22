@@ -27,3 +27,4 @@ jobs:
           Write-Host "FACEBOOK_WRITE=0"
           Write-Host "META_LIVE=0"
           Write-Host "8766_ARTICLE_POOL_ADAPTER=PASS"
+ 
