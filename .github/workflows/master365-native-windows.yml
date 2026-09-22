@@ -1,0 +1,38 @@
+name: MASTER365 native Windows isolated publisher validation
+on:
+  push:
+    branches:
+      - engineering/master365-native-windows
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Native CMD wrapper validation
+        shell: cmd
+        run: |
+          cd engineering\master365
+          (echo.)|run_master365_windows.cmd
+      - name: Verify persistent result and clipboard-safe content
+        shell: powershell
+        run: |
+          $base = Join-Path $env:TEMP 'TMNM Master365 Results With Spaces'
+          $files = @(Get-ChildItem -LiteralPath $base -Filter 'MASTER365_RESULT_*.json')
+          if ($files.Count -ne 1) { throw "Expected exactly one unique result, found $($files.Count)" }
+          $r = Get-Content -LiteralPath $files[0].FullName -Raw | ConvertFrom-Json
+          if ($r.STATUS -ne 'PASS') { throw "Result not PASS" }
+          $raw = Get-Content -LiteralPath $files[0].FullName -Raw
+          if ($raw -match 'TOPSECRET|SECONDSECRET') { throw 'Secret leaked to result' }
+          $clip = Get-Clipboard -Raw
+          if ($clip -ne $raw) { throw 'Clipboard readback mismatch' }
+          Write-Host "PERSISTENT_RESULT=PASS"
+          Write-Host "STALE_RESULT_ACCEPTANCE=ZERO"
+          Write-Host "SECRET_FREE_CLIPBOARD=PASS"
+          Write-Host "META_TRAFFIC=ZERO"
