@@ -144,3 +144,44 @@ def collect(root: Path) -> list[tuple[Path,bytes]]:
     if not owner8766: raise CollectorError("MISSING_8766_OWNER_CONSOLE_SOURCE")
     return captured
 
+
+def write_archive(captured, output_dir: Path) -> Path:
+    if not captured: raise CollectorError("EMPTY_OUTPUT")
+    if not output_dir.is_absolute(): raise CollectorError("OUTPUT_DIR_NOT_ABSOLUTE")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    name="TMNM_CURRENT_PUBLISHING_SOURCE_ONLY_"+uuid.uuid4().hex+".zip"
+    final=output_dir/name; partial=output_dir/(name+".partial"); owned={partial,final}; manifest=[]
+    try:
+        with zipfile.ZipFile(partial,"x",zipfile.ZIP_DEFLATED) as z:
+            for rel,data in captured:
+                arc=str(rel).replace("\\","/"); z.writestr(arc,data)
+                manifest.append({"path":arc,"sha256":digest(data),"size":len(data)})
+            z.writestr("SOURCE_MANIFEST.json",json.dumps({"schema":"TMNM_SOURCE_RECOVERY_V3","files":sorted(manifest,key=lambda x:x["path"].lower()),"secret_scan":"PASS","capture_semantics":"scan/hash/archive same captured bytes"},indent=2).encode("utf-8"))
+        if final.exists(): raise CollectorError("UNIQUE_OUTPUT_COLLISION")
+        partial.rename(final); return final
+    except Exception:
+        errors=[]
+        for p in owned:
+            if p.exists():
+                try:p.unlink()
+                except OSError as e:errors.append(str(e))
+        if errors: raise CollectorError("CLEANUP_FAILED:"+";".join(errors))
+        raise
+
+def main() -> int:
+    try:
+        if os.name!="nt": raise CollectorError("NATIVE_WINDOWS_REQUIRED")
+        local=absolute_localappdata(); inspect_root_ancestors(local); root=local/"TMNM"
+        if not root.is_dir(): raise CollectorError("TMNM_ROOT_MISSING")
+        captured=collect(root)
+        output_dir=Path(tempfile.mkdtemp(prefix="TMNM_Source_Recovery_")).resolve()
+        try: output_dir.relative_to(root.resolve()); raise CollectorError("OUTPUT_INSIDE_INSTALLED_TREE")
+        except ValueError: pass
+        final=write_archive(captured,output_dir)
+        archive_hash=digest(final.read_bytes())
+        print("FILES="+str(len(captured))); print("ZIP="+str(final)); print("ZIP_SHA256="+archive_hash); print("STATUS=PASS")
+        return 0
+    except Exception as e:
+        print("STATUS=FAIL"); print("ERROR="+str(e)); return 2
+
+if __name__=="__main__": raise SystemExit(main())
