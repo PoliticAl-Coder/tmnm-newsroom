@@ -18,3 +18,6 @@ jobs:
         with: {python-version: '3.12'}
       - name: Run isolated collector tests
         run: python -B engineering/source-recovery/test_collect_current_publishing_source.py
+      - name: Run native Windows wrapper tests
+        if: runner.os == 'Windows'
+        run: python -B engineering/source-recovery/test_master358_windows_wrapper.py
