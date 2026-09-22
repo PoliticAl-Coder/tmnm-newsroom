@@ -112,7 +112,7 @@ def persist_evidence(payload:dict, info:dict, title:str, drive_factory=None):
     check=drive.files().get(fileId=created["id"],fields="id,name,size").execute()
     return {"drive_file_id":check["id"],"drive_name":check["name"],"drive_size":check.get("size"),"verified":True}
 
-def main(argv=None):
+def run(argv=None, inspect_fn=inspect, persist_fn=persist_evidence):
     p=argparse.ArgumentParser(); p.add_argument("--credential",required=True); p.add_argument("--out",required=True); p.add_argument("--persist-drive",action="store_true"); a=p.parse_args(argv)
     result,snapshot=inspect(Path(a.credential))
     payload={"result":result,"snapshot":snapshot}
@@ -120,4 +120,4 @@ def main(argv=None):
     print("TMNM_MASTER384_STATUS="+("PASS" if result["GOOGLE_AUTH"]=="PASS" else "HOLD"))
     print("RESULT_FILE="+str(Path(a.out)))
     return 0 if result["GOOGLE_AUTH"]=="PASS" and (not a.persist_drive or payload["drive_persistence"]["status"]=="PASS") else 2
-if __name__=="__main__": raise SystemExit(main())
+def main(argv=None): return run(argv)\nif __name__=="__main__": raise SystemExit(main())
