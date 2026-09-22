@@ -92,7 +92,7 @@ def inspect(credential_path:Path, service_factory=None, credential_loader=None):
         snap={"head":{"hash":hh,"files":head.get("files",[])},
               "deployment":{"deploymentId":DEPLOYMENT_ID,"deploymentConfig":dep.get("deploymentConfig",{}),"updateTime":dep.get("updateTime")},
               "deployed_version":{"versionNumber":int(ver),"hash":dh,"files":deployed.get("files",[])}}
-        return out,snap
+        return out,snap,info
     except Exception as e:
         out["error"]=safe_error(e); return out,None,None
 def persist_evidence(payload:dict, info:dict, title:str, drive_factory=None):
