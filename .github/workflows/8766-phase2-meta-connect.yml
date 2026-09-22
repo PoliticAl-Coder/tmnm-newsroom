@@ -131,12 +131,22 @@ jobs:
           Write-Host ('GET_HTTP=' + ((Get-Content get_headers.txt | Select-String '^HTTP/' | Select-Object -Last 1).Line))
           Write-Host ('GET_CONTENT_TYPE=' + ((Get-Content get_headers.txt | Select-String '^content-type:' | Select-Object -Last 1).Line))
           $tx='PROBE_' + [guid]::NewGuid().ToString('N').Substring(0,24)
-          curl.exe -sS --max-time 30 -D post_headers.txt -o post_body.txt -X POST --data-urlencode "action=register" --data-urlencode "tx=$tx" $url
+          curl.exe -sS -L --max-time 45 -D post_headers.txt -o post_body.txt --data-urlencode "action=register" --data-urlencode "tx=$tx" $url
           $rc=$LASTEXITCODE
           Write-Host ('POST_CURL_EXIT=' + $rc)
           if(Test-Path post_headers.txt){Write-Host ('POST_HTTP=' + ((Get-Content post_headers.txt | Select-String '^HTTP/' | Select-Object -Last 1).Line));Write-Host ('POST_LOCATION_HOST=' + (((Get-Content post_headers.txt | Select-String '^location:' | Select-Object -Last 1).Line -replace '^location:\s*https?://','') -split '/')[0])}
           if(Test-Path post_body.txt){$raw=Get-Content post_body.txt -Raw; try{$j=$raw|ConvertFrom-Json;Write-Host ('POST_BODY_SHAPE=JSON_OBJECT');Write-Host ('REGISTER_STATUS='+$j.status);Write-Host ('REGISTER_ERROR='+$j.error);Write-Host ('STATE_PRESENT='+[bool]($j.state))}catch{Write-Host 'POST_BODY_SHAPE=NON_JSON'}}
           if($rc -ne 0){throw 'REAL_REGISTER_TRANSPORT_FAILED'}
+          if(-not (Test-Path post_body.txt)){throw 'REAL_REGISTER_NO_BODY'}
+          $j=(Get-Content post_body.txt -Raw | ConvertFrom-Json)
+          if($j.status -ne 'PASS' -or -not $j.state){throw ('REAL_REGISTER_NOT_PASS_'+$j.error)}
+          curl.exe -sS -L --max-time 45 -o poll_body.txt --data-urlencode "action=poll" --data-urlencode "tx=$tx" $url
+          if($LASTEXITCODE -ne 0){throw 'REAL_POLL_TRANSPORT_FAILED'}
+          $p=(Get-Content poll_body.txt -Raw | ConvertFrom-Json)
+          Write-Host ('POLL_STATUS='+$p.status)
+          if($p.status -ne 'WAIT'){throw ('REAL_POLL_NOT_WAIT_'+$p.error)}
+          Write-Host 'REAL_DEPLOYED_REGISTER_POLL=PASS'
+          Write-Host 'FACEBOOK_WRITE=0'
       - uses: actions/upload-artifact@v4
         with:
           name: TMNM_8766_CONNECT_FACEBOOK_V3
