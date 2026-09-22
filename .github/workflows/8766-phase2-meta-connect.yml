@@ -18,7 +18,7 @@ jobs:
           python -m unittest -v engineering\8766\test_meta_connect.py || exit /b 1
           findstr /C:"APP_ID=\"1754274758914441\"" engineering\8766\meta_connect.py || exit /b 1
           findstr /C:"GRAPH_VERSION=\"v26.0\"" engineering\8766\meta_connect.py || exit /b 1
-          findstr /C:"META_REDIRECT_URI=EXCHANGE_BASE+\"?action=callback\"" engineering\8766\meta_connect.py || exit /b 1
+          findstr /C:"META_REDIRECT_URI=EXCHANGE_BASE+\"?mode=oauth_callback\"" engineering\8766\meta_connect.py || exit /b 1
           findstr /C:"SCOPES=(\"pages_show_list\",\"pages_read_engagement\",\"pages_manage_posts\")" engineering\8766\meta_connect.py || exit /b 1
           echo CONNECT_MODULE=PASS
           echo NATIVE_WINDOWS=PASS
