@@ -159,5 +159,6 @@ jobs:
 # rerun after verified source correction
 # owner-path rehearsal gate
 # authoritative Script ID deployed; execute real register/poll gate
+# rerun after authoritative META_REDIRECT_URI property repaste
 
 # final V3 TypeError regression package rerun
