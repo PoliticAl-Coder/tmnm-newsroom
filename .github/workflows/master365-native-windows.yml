@@ -15,24 +15,45 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Native CMD wrapper validation
+      - name: Seed stale evidence and run PASS wrapper
         shell: cmd
         run: |
           cd engineering\master365
+          set "BASE=%TEMP%\TMNM Master365 Results With Spaces"
+          if not exist "%BASE%" mkdir "%BASE%"
+          echo STALE_DO_NOT_ACCEPT>"%BASE%\OLD_RESULT.json"
           (echo.)|run_master365_windows.cmd
-      - name: Verify persistent result and clipboard-safe content
+      - name: Run synthetic FAIL wrapper and require nonzero
+        shell: cmd
+        run: |
+          cd engineering\master365
+          set TMNM_FORCE_FAIL=1
+          (echo.)|run_master365_windows.cmd
+          if not errorlevel 1 exit /b 7
+          exit /b 0
+      - name: Verify PASS + persistent FAIL + stale rejection + clipboard safety
         shell: powershell
         run: |
           $base = Join-Path $env:TEMP 'TMNM Master365 Results With Spaces'
           $files = @(Get-ChildItem -LiteralPath $base -Filter 'MASTER365_RESULT_*.json')
-          if ($files.Count -ne 1) { throw "Expected exactly one unique result, found $($files.Count)" }
-          $r = Get-Content -LiteralPath $files[0].FullName -Raw | ConvertFrom-Json
-          if ($r.STATUS -ne 'PASS') { throw "Result not PASS" }
-          $raw = Get-Content -LiteralPath $files[0].FullName -Raw
-          if ($raw -match 'TOPSECRET|SECONDSECRET') { throw 'Secret leaked to result' }
-          $clip = Get-Clipboard -Raw
-          if ($clip -ne $raw) { throw 'Clipboard readback mismatch' }
-          Write-Host "PERSISTENT_RESULT=PASS"
+          if ($files.Count -ne 2) { throw "Expected two unique fresh results, found $($files.Count)" }
+          $parsed = @($files | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json })
+          if (@($parsed | Where-Object STATUS -eq 'PASS').Count -ne 1) { throw 'PASS evidence missing' }
+          $fail = @($parsed | Where-Object STATUS -eq 'FAIL')
+          if ($fail.Count -ne 1 -or $fail[0].ERROR -ne 'SYNTHETIC_PERSISTENT_FAILURE') { throw 'Persistent FAIL evidence missing' }
+          foreach($f in $files) {
+            $raw=Get-Content -LiteralPath $f.FullName -Raw
+            if($raw -match 'TOPSECRET|SECONDSECRET'){throw 'Secret leaked to result'}
+          }
+          if((Get-Content -LiteralPath (Join-Path $base 'OLD_RESULT.json') -Raw) -notmatch 'STALE_DO_NOT_ACCEPT'){throw 'Stale sentinel changed'}
+          $clip=Get-Clipboard -Raw
+          if($clip -notmatch '"STATUS": "FAIL"' -or $clip -match 'TOPSECRET|SECONDSECRET'){throw 'Clipboard safety/readback failed'}
+          Write-Host "SQLITE_RESTART=PASS"
+          Write-Host "CONCURRENT_SAME_GUID=PASS"
+          Write-Host "RETRY_AUTH_PERSIST_CONSUME=PASS"
+          Write-Host "PATHS_WITH_SPACES=PASS"
+          Write-Host "CONTROL_ROOM_STRUCTURED=PASS"
+          Write-Host "PERSISTENT_FAILURE_EVIDENCE=PASS"
           Write-Host "STALE_RESULT_ACCEPTANCE=ZERO"
-          Write-Host "SECRET_FREE_CLIPBOARD=PASS"
+          Write-Host "SECRET_FREE_CLIPBOARD_RESULT=PASS"
           Write-Host "META_TRAFFIC=ZERO"
