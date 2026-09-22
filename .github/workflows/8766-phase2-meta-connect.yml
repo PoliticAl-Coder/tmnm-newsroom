@@ -68,19 +68,13 @@ jobs:
           $z=tar -tf TMNM_8766_CONNECT_FACEBOOK_V3.zip
           $expected=@('TMNM_8766_CONNECT_FACEBOOK.bat','connect_facebook.py','meta_connect.py','README.txt')
           foreach($x in $expected){ if(-not ($z -contains $x)){ throw "MISSING_TOP_LEVEL_$x" } }
-          if($z | Where-Object { $_ -match '\\.zip
-      - uses: actions/upload-artifact@v4
-        with:
-          name: TMNM_8766_CONNECT_FACEBOOK
-          path: TMNM_8766_CONNECT_FACEBOOK_V3.zip
-          retention-days: 7
- }) { throw 'NESTED_ZIP_FOUND' }
+          if($z | Where-Object { $_ -match '\\.zip$' }) { throw 'NESTED_ZIP_FOUND' }
           Write-Host 'PACKAGE_GATE=PASS'
           Write-Host 'SINGLE_LAYER_ZIP=PASS'
           Write-Host 'FACEBOOK_WRITE=0'
           Write-Host 'SECRET_LEAK=0'
       - uses: actions/upload-artifact@v4
         with:
-          name: TMNM_8766_CONNECT_FACEBOOK
-          path: TMNM_8766_CONNECT_FACEBOOK.zip
+          name: TMNM_8766_CONNECT_FACEBOOK_V3
+          path: TMNM_8766_CONNECT_FACEBOOK_V3.zip
           retention-days: 7
