@@ -7,7 +7,7 @@ APP_ID="1754274758914441"
 PAGE_ID="1021402681056527"
 GRAPH_VERSION="v26.0"
 EXCHANGE_BASE="https://script.google.com/macros/s/AKfycbyyPnHf2HLe0rHs2U01QzxzUvsEiqBJ2DPV8Z1asX11AKqNjBtyfd844eVDYKyKNda1/exec"
-META_REDIRECT_URI=EXCHANGE_BASE+"?action=callback"
+META_REDIRECT_URI=EXCHANGE_BASE+"?mode=oauth_callback"
 AUTH_ENDPOINT=f"https://www.facebook.com/{GRAPH_VERSION}/dialog/oauth"
 SCOPES=("pages_show_list","pages_read_engagement","pages_manage_posts")
 LOCAL_HOST="127.0.0.1"
