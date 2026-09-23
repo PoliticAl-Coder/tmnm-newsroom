@@ -106,6 +106,8 @@ jobs:
           Remove-Item -Recurse -Force rehearsal -ErrorAction SilentlyContinue
           Expand-Archive TMNM_8766_CONNECT_FACEBOOK_EXEC.zip rehearsal
           $env:TMNM_REHEARSAL='1'; $env:TMNM_NONINTERACTIVE='1'
+          py -3 -m pip install pywin32 | Out-Null
+          if($LASTEXITCODE -ne 0){throw 'PY_LAUNCHER_DPAPI_DEPENDENCY_FAILED'}
           cmd.exe /c rehearsal\TMNM_8766_CONNECT_FACEBOOK.bat
           if($LASTEXITCODE -ne 0){throw 'BAT_REHEARSAL_FAILED'}
           $result=Get-Content rehearsal\TMNM_8766_CONNECT_RESULT.txt -Raw
