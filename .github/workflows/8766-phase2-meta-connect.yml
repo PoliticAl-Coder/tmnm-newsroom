@@ -135,7 +135,7 @@ jobs:
           type "TMNM_8766_CONNECT_RESULT.txt"
           echo.
           echo RESULT SAVED, OPENED IN NOTEPAD, AND COPIED TO CLIPBOARD.
-          pause
+          if not "%TMNM_NONINTERACTIVE%"=="1" pause
           exit /b %RC%
           '@ | Set-Content owner-package/TMNM_8766_CONNECT_FACEBOOK.bat -Encoding ASCII
           @'
