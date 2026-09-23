@@ -1,6 +1,6 @@
 """TMNM 8766 Meta CONNECT client — /exec callback engineering proof. GET-only discovery; no Facebook write endpoints."""
 from __future__ import annotations
-import json, os, secrets, time, urllib.parse, urllib.request, webbrowser
+import json, os, secrets, time, urllib.parse, urllib.request, shutil, subprocess
 from dataclasses import dataclass
 
 APP_ID="1754274758914441"
@@ -74,7 +74,21 @@ def redeem_handoff(handoff,tx,post=_form_post):
     if not isinstance(token,str) or not token:raise RuntimeError("REDEEM_HOLD")
     return token
 
-def connect_facebook(token_path,open_browser=webbrowser.open,post=_form_post,graph_get=_graph_get,poll=poll_handoff):
+def open_private_browser(url, which=shutil.which, popen=subprocess.Popen):
+    if not isinstance(url,str) or not url.startswith(AUTH_ENDPOINT+"?"): raise RuntimeError("BROWSER_URL_HOLD")
+    if "/u/0/" in url or "/u/1/" in url: raise RuntimeError("ACCOUNT_INDEX_URL_HOLD")
+    candidates=[("msedge.exe","--inprivate"),("chrome.exe","--incognito")]
+    for exe,flag in candidates:
+        path=which(exe)
+        if path:
+            try:
+                popen([path,flag,url],close_fds=True)
+                return True
+            except OSError:
+                continue
+    raise RuntimeError("PRIVATE_BROWSER_UNAVAILABLE")
+
+def connect_facebook(token_path,open_browser=open_private_browser,post=_form_post,graph_get=_graph_get,poll=poll_handoff):
     tx=secrets.token_urlsafe(24);state=secrets.token_urlsafe(32)
     register_transaction(tx,state,post)
     if not open_browser(build_authorization_url(state)):raise RuntimeError("BROWSER_OPEN_HOLD")
