@@ -279,16 +279,33 @@ jobs:
           $url='https://script.google.com/macros/s/AKfycbyyPnHf2HLe0rHs2U01QzxzUvsEiqBJ2DPV8Z1asX11AKqNjBtyfd844eVDYKyKNda1/exec'
           $probeOk=$false
           foreach($attempt in 1..3){
+            Remove-Item get_headers.txt,get_body.txt -ErrorAction SilentlyContinue
             $timer=[Diagnostics.Stopwatch]::StartNew()
-            curl.exe -sS -L --connect-timeout 10 --max-time 60 -o get_body.txt -w "HTTP=%{http_code} REMOTE=%{remote_ip} CONNECT=%{time_connect} TLS=%{time_appconnect} START=%{time_starttransfer} TOTAL=%{time_total}`n" $url
+            curl.exe -sS --connect-timeout 10 --max-time 45 -D get_headers.txt -o get_body.txt -w "HTTP=%{http_code} REMOTE=%{remote_ip} CONNECT=%{time_connect} TLS=%{time_appconnect} START=%{time_starttransfer} TOTAL=%{time_total}`n" $url
             $rc=$LASTEXITCODE
             $timer.Stop()
-            Write-Host ("EXEC_PROBE_ATTEMPT={0} CURL_EXIT={1} ELAPSED_MS={2}" -f $attempt,$rc,$timer.ElapsedMilliseconds)
-            if($rc -eq 0){$probeOk=$true;break}
+            Write-Host ("EXEC_INITIAL_ATTEMPT={0} CURL_EXIT={1} ELAPSED_MS={2}" -f $attempt,$rc,$timer.ElapsedMilliseconds)
+            if(Test-Path get_headers.txt){
+              $status=(Get-Content get_headers.txt | Select-String '^HTTP/' | Select-Object -Last 1).Line
+              $loc=(Get-Content get_headers.txt | Select-String '^Location:' | Select-Object -Last 1).Line
+              Write-Host "EXEC_INITIAL_STATUS=$status"
+              if($loc){Write-Host "EXEC_REDIRECT_PRESENT=YES"}
+            }
+            if($rc -eq 0){
+              $location=((Get-Content get_headers.txt | Select-String '^Location:' | Select-Object -Last 1).Line -replace '^Location:\\s*','').Trim()
+              if($location){
+                curl.exe -sS --connect-timeout 10 --max-time 60 -D final_headers.txt -o get_body.txt -w "FINAL_HTTP=%{http_code} FINAL_REMOTE=%{remote_ip} FINAL_CONNECT=%{time_connect} FINAL_TLS=%{time_appconnect} FINAL_START=%{time_starttransfer} FINAL_TOTAL=%{time_total}`n" $location
+                $rc=$LASTEXITCODE
+                $finalStatus=(Get-Content final_headers.txt | Select-String '^HTTP/' | Select-Object -Last 1).Line
+                Write-Host "EXEC_FINAL_STATUS=$finalStatus"
+              }
+            }
+            if($rc -eq 0 -and (Test-Path get_body.txt)){
+              try{$g=(Get-Content get_body.txt -Raw | ConvertFrom-Json);$probeOk=$true;break}catch{Write-Host 'EXEC_FINAL_JSON=FAIL'}
+            }
             Start-Sleep -Seconds (2*$attempt)
           }
-          if(-not $probeOk){throw 'EXEC_IDENTITY_TRANSPORT_REPRODUCIBLE'}
-          $g=(Get-Content get_body.txt -Raw | ConvertFrom-Json)
+          if(-not $probeOk){throw 'EXEC_IDENTITY_ROUTE_REPRODUCIBLE'}
           if($g.service -ne 'TMNM 8766 OAuth Exchange'){throw 'EXEC_IDENTITY_SERVICE'}
           if($g.redirect_uri -ne $url){throw 'EXEC_IDENTITY_REDIRECT'}
           if($g.facebook_write -ne 0){throw 'EXEC_IDENTITY_WRITE'}
