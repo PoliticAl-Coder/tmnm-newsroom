@@ -45,6 +45,7 @@ jobs:
           import os,pathlib,traceback
           import meta_connect as m
           out=pathlib.Path(__file__).with_name('TMNM_8766_CONNECT_RESULT.txt')
+          stage={'BROWSER_LAUNCHED':'NOT_PROVEN','META_DIALOG_REACHED':'NOT_PROVEN','META_CALLBACK_RETURNED':'NOT_PROVEN','HANDOFF_REDEEM':'NOT_STARTED','DPAPI':'NOT_STARTED','ME_ACCOUNTS':'NOT_STARTED','PAGE_MATCH':'NOT_STARTED','RESULT_STAGE':'START','ERROR':'NONE'}
           def rehearsal_deps():
               def post(url,fields):
                   a=fields.get('action')
@@ -58,46 +59,82 @@ jobs:
                   if path!='/me/accounts': raise RuntimeError('NON_GET_DISCOVERY_PATH')
                   return {'data':[{'id':'1021402681056527','name':'TMNM','access_token':'SYNTHETIC_PAGE_TOKEN','tasks':['CREATE_CONTENT']}]}
               def browser(url):
-                  calls=[]
-                  edge=m.os.path.join('C:/Program Files (x86)','Microsoft','Edge','Application','msedge.exe')
-                  diag=[]
+                  calls=[]; edge=m.os.path.join('C:/Program Files (x86)','Microsoft','Edge','Application','msedge.exe'); diag=[]
                   ok=m.open_private_browser(url,which=lambda x:None,environ={'PROGRAMFILES(X86)':'C:/Program Files (x86)'},exists=lambda p:p==edge,registry_reader=lambda x:None,popen=lambda argv,**kw:calls.append(argv),diagnostic=diag.append)
                   if 'BROWSER_SELECTED=EDGE' not in diag: raise RuntimeError('SAFE_BROWSER_DIAGNOSTIC_HOLD')
                   if not ok or len(calls)!=1 or calls[0][1]!='--inprivate': raise RuntimeError('PRIVATE_BROWSER_REHEARSAL_HOLD')
-                  print('PRIVATE_BROWSER_LAUNCH=PASS')
-                  print('REALISTIC_WINDOWS_BROWSER_DISCOVERY=PASS')
-                  print('SAFE_BROWSER_DIAGNOSTICS=PASS')
+                  print('PRIVATE_BROWSER_LAUNCH=PASS'); print('REALISTIC_WINDOWS_BROWSER_DISCOVERY=PASS'); print('SAFE_BROWSER_DIAGNOSTICS=PASS')
                   return True
               return post,graph,browser
+          def safe_lines(r=None):
+              r=r or {'META_AUTH':'HOLD','TMNM_PAGE_ID_MATCH':'HOLD','REQUIRED_ACCESS':'HOLD'}
+              return ['TMNM 8766 CONNECT FACEBOOK',
+                'BROWSER_LAUNCHED='+stage['BROWSER_LAUNCHED'],
+                'META_DIALOG_REACHED='+stage['META_DIALOG_REACHED'],
+                'META_CALLBACK_RETURNED='+stage['META_CALLBACK_RETURNED'],
+                'HANDOFF_REDEEM='+stage['HANDOFF_REDEEM'],'DPAPI='+stage['DPAPI'],
+                'ME_ACCOUNTS='+stage['ME_ACCOUNTS'],'PAGE_MATCH='+stage['PAGE_MATCH'],
+                'META_AUTH='+r['META_AUTH'],'TMNM_PAGE_ID_MATCH='+r['TMNM_PAGE_ID_MATCH'],
+                'REQUIRED_ACCESS='+r['REQUIRED_ACCESS'],'FACEBOOK_WRITE=0',
+                'RESULT/STAGE='+stage['RESULT_STAGE'],'ERROR='+stage['ERROR']]
           def main():
               try:
                   token=pathlib.Path.home()/'.tmnm8766'/'meta_token.dpapi'
-                  if os.environ.get('TMNM_REHEARSAL')=='1':
-                      post,graph,browser=rehearsal_deps()
-                      r=m.connect_facebook(str(token),open_browser=browser,post=post,graph_get=graph,poll=lambda tx,p:m.poll_handoff(tx,p,timeout=1,interval=0)).as_dict()
-                  else:
-                      r=m.connect_facebook(str(token)).as_dict()
-                  lines=['TMNM 8766 CONNECT FACEBOOK','BROWSER_LAUNCHED=PASS','META_DIALOG_REACHED=PASS','META_AUTH='+r['META_AUTH'],'TMNM_PAGE_ID_MATCH='+r['TMNM_PAGE_ID_MATCH'],'REQUIRED_ACCESS='+r['REQUIRED_ACCESS'],'FACEBOOK_WRITE=0']
-                  exit_code=0 if r['META_AUTH']=='PASS' and r['TMNM_PAGE_ID_MATCH']=='PASS' and r['REQUIRED_ACCESS']=='PASS' else 2
+                  if os.environ.get('TMNM_REHEARSAL')=='1': post,graph,browser=rehearsal_deps()
+                  else: post,graph,browser=m._form_post,m._graph_get,m.open_private_browser
+                  tx=m.secrets.token_urlsafe(24); state=m.secrets.token_urlsafe(32)
+                  stage['RESULT_STAGE']='REGISTER'; m.register_transaction(tx,state,post)
+                  stage['RESULT_STAGE']='BROWSER_LAUNCH'
+                  if not browser(m.build_authorization_url(state)): raise RuntimeError('BROWSER_OPEN_HOLD')
+                  stage['BROWSER_LAUNCHED']='PASS'
+                  stage['RESULT_STAGE']='WAITING_META_CALLBACK'
+                  handoff=m.poll_handoff(tx,post,timeout=(1 if os.environ.get('TMNM_REHEARSAL')=='1' else 600),interval=(0 if os.environ.get('TMNM_REHEARSAL')=='1' else 2))
+                  stage['META_DIALOG_REACHED']='PASS'; stage['META_CALLBACK_RETURNED']='PASS'
+                  stage['RESULT_STAGE']='HANDOFF_REDEEM'; credential=m.redeem_handoff(handoff,tx,post); stage['HANDOFF_REDEEM']='PASS'
+                  stage['RESULT_STAGE']='DPAPI'; store=m.ProtectedTokenStore(str(token)); store.save(credential); loaded=store.load(); stage['DPAPI']='PASS'
+                  stage['RESULT_STAGE']='ME_ACCOUNTS'; r=m.read_only_preflight(loaded,graph).as_dict(); stage['ME_ACCOUNTS']='PASS'
+                  stage['PAGE_MATCH']=r['TMNM_PAGE_ID_MATCH']
+                  stage['RESULT_STAGE']='PASS' if all(r[k]=='PASS' for k in ('META_AUTH','TMNM_PAGE_ID_MATCH','REQUIRED_ACCESS')) else 'HOLD_PREFLIGHT'
+                  lines=safe_lines(r); exit_code=0 if stage['RESULT_STAGE']=='PASS' else 2
               except Exception as e:
-                  tb=traceback.extract_tb(e.__traceback__);last=tb[-1] if tb else None
-                  where=('FILE='+pathlib.Path(last.filename).name+' FUNCTION='+last.name+' LINE='+str(last.lineno)) if last else 'FILE=UNKNOWN FUNCTION=UNKNOWN LINE=0'
-                  lines=['TMNM 8766 CONNECT FACEBOOK','BROWSER_LAUNCHED='+('PASS' if any(x=='BROWSER_LAUNCH_STAGE=STARTED' for x in m.get_safe_browser_diagnostics()) else 'NOT_PROVEN'),'META_DIALOG_REACHED=NOT_PROVEN','META_AUTH=HOLD','TMNM_PAGE_ID_MATCH=HOLD','REQUIRED_ACCESS=HOLD','FACEBOOK_WRITE=0','ERROR='+type(e).__name__,where]+m.get_safe_browser_diagnostics()
-                  exit_code=2
-              out.write_text('\n'.join(lines)+'\n',encoding='utf-8');print('\n'.join(lines))
-              if os.environ.get('TMNM_NONINTERACTIVE')!='1': input('\nCONNECT finished. Press Enter to return to the launcher...')
+                  stage['ERROR']=type(e).__name__+':'+str(e)
+                  if stage['RESULT_STAGE']=='WAITING_META_CALLBACK' and str(e)=='POLL_TIMEOUT': stage['ERROR']='CALLBACK_TIMEOUT'
+                  stage['RESULT_STAGE']='HOLD_'+stage['RESULT_STAGE']
+                  lines=safe_lines(); exit_code=2
+              out.write_text('\n'.join(lines)+'\n',encoding='utf-8'); print('\n'.join(lines))
               return exit_code
           if __name__=='__main__': raise SystemExit(main())
           '@ | Set-Content owner-package/connect_facebook.py -Encoding UTF8
           @'
           @echo off
+          setlocal
           title TMNM 8766 CONNECT FACEBOOK - GET ONLY
           cd /d "%~dp0"
           py -3 connect_facebook.py
           set "RC=%ERRORLEVEL%"
+          if not exist "TMNM_8766_CONNECT_RESULT.txt" (
+            >"TMNM_8766_CONNECT_RESULT.txt" echo TMNM 8766 CONNECT FACEBOOK
+            >>"TMNM_8766_CONNECT_RESULT.txt" echo BROWSER_LAUNCHED=NOT_PROVEN
+            >>"TMNM_8766_CONNECT_RESULT.txt" echo META_DIALOG_REACHED=NOT_PROVEN
+            >>"TMNM_8766_CONNECT_RESULT.txt" echo META_CALLBACK_RETURNED=NOT_PROVEN
+            >>"TMNM_8766_CONNECT_RESULT.txt" echo HANDOFF_REDEEM=NOT_PROVEN
+            >>"TMNM_8766_CONNECT_RESULT.txt" echo DPAPI=NOT_PROVEN
+            >>"TMNM_8766_CONNECT_RESULT.txt" echo ME_ACCOUNTS=NOT_PROVEN
+            >>"TMNM_8766_CONNECT_RESULT.txt" echo PAGE_MATCH=NOT_PROVEN
+            >>"TMNM_8766_CONNECT_RESULT.txt" echo META_AUTH=HOLD
+            >>"TMNM_8766_CONNECT_RESULT.txt" echo TMNM_PAGE_ID_MATCH=HOLD
+            >>"TMNM_8766_CONNECT_RESULT.txt" echo REQUIRED_ACCESS=HOLD
+            >>"TMNM_8766_CONNECT_RESULT.txt" echo FACEBOOK_WRITE=0
+            >>"TMNM_8766_CONNECT_RESULT.txt" echo RESULT/STAGE=HOLD_LAUNCHER
+            >>"TMNM_8766_CONNECT_RESULT.txt" echo ERROR=PYTHON_RESULT_UNAVAILABLE
+            set "RC=2"
+          )
+          type "TMNM_8766_CONNECT_RESULT.txt" | clip
+          start "" notepad.exe "%~dp0TMNM_8766_CONNECT_RESULT.txt"
           echo.
-          echo FINAL RESULT SAVED: %~dp0TMNM_8766_CONNECT_RESULT.txt
+          type "TMNM_8766_CONNECT_RESULT.txt"
           echo.
+          echo RESULT SAVED, OPENED IN NOTEPAD, AND COPIED TO CLIPBOARD.
           pause
           exit /b %RC%
           '@ | Set-Content owner-package/TMNM_8766_CONNECT_FACEBOOK.bat -Encoding ASCII
@@ -126,11 +163,30 @@ jobs:
           Remove-Item -Recurse -Force rehearsal -ErrorAction SilentlyContinue
           Expand-Archive TMNM_8766_CONNECT_FACEBOOK_EXEC.zip rehearsal
           $env:TMNM_REHEARSAL='1'; $env:TMNM_NONINTERACTIVE='1'
+          New-Item -ItemType Directory -Force rehearsal\mockbin | Out-Null
+          '@echo off
+          more > "%~dp0..\clipboard_capture.txt"
+          exit /b 0' | Set-Content rehearsal\mockbin\clip.cmd -Encoding ASCII
+          '@echo off
+          echo %* > "%~dp0..\notepad_open.txt"
+          exit /b 0' | Set-Content rehearsal\mockbin\notepad.exe.cmd -Encoding ASCII
+          '@echo off
+          if /I "%1"=="" exit /b 1
+          shift
+          call %*
+          exit /b %ERRORLEVEL%' | Set-Content rehearsal\mockbin\start.cmd -Encoding ASCII
+          $env:PATH=(Resolve-Path rehearsal\mockbin).Path+';'+$env:PATH
           py -3 -m pip install pywin32 | Out-Null
           if($LASTEXITCODE -ne 0){throw 'PY_LAUNCHER_DPAPI_DEPENDENCY_FAILED'}
           cmd.exe /c rehearsal\TMNM_8766_CONNECT_FACEBOOK.bat
           if($LASTEXITCODE -ne 0){throw 'BAT_REHEARSAL_FAILED'}
           $result=Get-Content rehearsal\TMNM_8766_CONNECT_RESULT.txt -Raw
+          if(-not (Test-Path rehearsal\TMNM_8766_CONNECT_RESULT.txt)){throw 'SAVE_TXT_FAIL'}
+          if($result -notmatch 'RESULT/STAGE=PASS'){throw 'RESULT_STAGE_PASS_MISSING'}
+          if($result -notmatch 'META_CALLBACK_RETURNED=PASS'){throw 'CALLBACK_STAGE_MISSING'}
+          if((Get-Content rehearsal\clipboard_capture.txt -Raw) -ne $result){throw 'CLIPBOARD_COPY_MISMATCH'}
+          if((Get-Content rehearsal\TMNM_8766_CONNECT_FACEBOOK.bat -Raw) -notmatch 'start "" notepad.exe'){throw 'AUTO_OPEN_TXT_MISSING'}
+          Write-Host 'SAVE TXT=PASS'; Write-Host 'AUTO-OPEN TXT=PASS'; Write-Host 'CLIPBOARD COPY=PASS'
           foreach($m in @('META_AUTH=PASS','TMNM_PAGE_ID_MATCH=PASS','REQUIRED_ACCESS=PASS','FACEBOOK_WRITE=0')){if($result -notmatch [regex]::Escape($m)){throw "BAT_RESULT_$m"}}
           Copy-Item rehearsal\connect_facebook.py rehearsal\connect_facebook_pass.py
           $p=Get-Content rehearsal\connect_facebook.py -Raw
@@ -143,6 +199,8 @@ jobs:
           cmd.exe /c "rehearsal\TMNM_8766_CONNECT_FACEBOOK.bat < NUL"
           if($LASTEXITCODE -eq 0){throw 'BAT_HOLD_EXITED_ZERO'}
           $hold=Get-Content rehearsal\TMNM_8766_CONNECT_RESULT.txt -Raw
+          if((Get-Content rehearsal\clipboard_capture.txt -Raw) -ne $hold){throw 'HOLD_CLIPBOARD_COPY_MISMATCH'}
+          Write-Host 'HOLD_SAVE_TXT=PASS'; Write-Host 'HOLD_AUTO_OPEN_TXT=PASS'; Write-Host 'HOLD_CLIPBOARD_COPY=PASS'
           if($hold -notmatch 'META_AUTH=HOLD'){throw 'BAT_HOLD_RESULT_MISSING'}
           if($hold -notmatch 'META_DIALOG_REACHED=NOT_PROVEN'){throw 'META_DIALOG_FALSE_POSITIVE'}
           if($hold -match 'ModuleNotFoundError'){throw 'BAT_SECOND_INTERPRETER_LAUNCHED'}
