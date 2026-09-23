@@ -292,7 +292,7 @@ jobs:
               if($loc){Write-Host "EXEC_REDIRECT_PRESENT=YES"}
             }
             if($rc -eq 0){
-              $location=((Get-Content get_headers.txt | Select-String '^Location:' | Select-Object -Last 1).Line -replace '^Location:\\s*','').Trim()
+              $location=((Get-Content get_headers.txt | Select-String '^Location:' | Select-Object -Last 1).Line -replace '^Location:\s*','').Trim()
               if($location){
                 curl.exe -sS --connect-timeout 10 --max-time 60 -D final_headers.txt -o get_body.txt -w "FINAL_HTTP=%{http_code} FINAL_REMOTE=%{remote_ip} FINAL_CONNECT=%{time_connect} FINAL_TLS=%{time_appconnect} FINAL_START=%{time_starttransfer} FINAL_TOTAL=%{time_total}`n" $location
                 $rc=$LASTEXITCODE
