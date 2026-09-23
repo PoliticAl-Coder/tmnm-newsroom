@@ -71,6 +71,8 @@ jobs:
       call %*'|Set-Content exact/mockbin/start.cmd -Encoding ASCII
       $env:PATH=(Resolve-Path exact/mockbin).Path+';'+$env:PATH
       cmd.exe /c call exact\\TMNM_8766_OWNER_FIRST_WRITE.bat
+      if($LASTEXITCODE -ne 2){throw 'EXPECTED_NONLIVE_HOLD'}
+      $global:LASTEXITCODE=0
       $r=Get-Content exact/TMNM_8766_OWNER_FIRST_WRITE_RESULT.txt -Raw
       if($r -notmatch 'FACEBOOK_WRITE_COUNT=0'){throw 'NONLIVE_WRITE'}
       $c=(Get-Content exact/clipboard.txt -Raw).Replace("`r`n","`n").TrimEnd("`n");$w=$r.Replace("`r`n","`n").TrimEnd("`n")
