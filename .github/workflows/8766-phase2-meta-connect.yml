@@ -153,6 +153,12 @@ jobs:
           if($z | Where-Object { $_ -match '\\.zip$' }) { throw 'NESTED_ZIP_FOUND' }
           if(Select-String -Path owner-package/meta_connect.py -SimpleMatch 'webbrowser.open') { throw 'DEFAULT_BROWSER_FALLBACK_FOUND' }
           if(Select-String -Path owner-package/meta_connect.py -Pattern 'script\.google\.com/macros/u/[0-9]+/') { throw 'ACCOUNT_INDEX_URL_CONSTRUCTION_FOUND' }
+          Expand-Archive TMNM_8766_CONNECT_FACEBOOK_EXEC.zip release_assert -Force
+          if(Select-String -Path release_assert\\*.py -SimpleMatch 'win32crypt'){throw 'FINAL_ZIP_WIN32CRYPT_FOUND'}
+          if(Select-String -Path release_assert\\*.py -SimpleMatch 'pywin32'){throw 'FINAL_ZIP_PYWIN32_FOUND'}
+          if(-not (Select-String -Path release_assert\\meta_connect.py -SimpleMatch 'CryptProtectData')){throw 'FINAL_ZIP_NATIVE_DPAPI_MISSING'}
+          Write-Host 'RELEASE_ZIP_WIN32CRYPT_ABSENT=PASS'
+          Write-Host 'RELEASE_ZIP_NATIVE_DPAPI=PASS'
           Write-Host 'PACKAGE_GATE=PASS'
           Write-Host 'SINGLE_LAYER_ZIP=PASS'
           Write-Host 'FACEBOOK_WRITE=0'
@@ -176,8 +182,13 @@ jobs:
           call %*
           exit /b %ERRORLEVEL%' | Set-Content rehearsal\mockbin\start.cmd -Encoding ASCII
           $env:PATH=(Resolve-Path rehearsal\mockbin).Path+';'+$env:PATH
-          py -3 -m pip install pywin32 | Out-Null
-          if($LASTEXITCODE -ne 0){throw 'PY_LAUNCHER_DPAPI_NATIVE_FAILED'}
+          if(Select-String -Path rehearsal\\*.py -SimpleMatch 'win32crypt'){throw 'RELEASE_ZIP_WIN32CRYPT_FOUND'}
+          if(Select-String -Path rehearsal\\*.py -SimpleMatch 'pywin32'){throw 'RELEASE_ZIP_PYWIN32_FOUND'}
+          if(-not (Select-String -Path rehearsal\\meta_connect.py -SimpleMatch 'CryptProtectData')){throw 'NATIVE_DPAPI_PROTECT_MISSING'}
+          if(-not (Select-String -Path rehearsal\\meta_connect.py -SimpleMatch 'CryptUnprotectData')){throw 'NATIVE_DPAPI_UNPROTECT_MISSING'}
+          Remove-Item rehearsal\\__pycache__ -Recurse -Force -ErrorAction SilentlyContinue
+          Write-Host 'RELEASE_ZIP_WIN32CRYPT_ABSENT=PASS'
+          Write-Host 'RELEASE_ZIP_NATIVE_DPAPI=PASS'
           cmd.exe /c rehearsal\TMNM_8766_CONNECT_FACEBOOK.bat
           if($LASTEXITCODE -ne 0){throw 'BAT_REHEARSAL_FAILED'}
           $result=Get-Content rehearsal\TMNM_8766_CONNECT_RESULT.txt -Raw
