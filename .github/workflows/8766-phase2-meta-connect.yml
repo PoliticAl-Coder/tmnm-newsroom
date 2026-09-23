@@ -194,14 +194,20 @@ jobs:
           if($g.redirect_uri -ne $url){throw 'EXEC_IDENTITY_REDIRECT'}
           if($g.facebook_write -ne 0){throw 'EXEC_IDENTITY_WRITE'}
           Write-Host 'DEPLOYED_EXEC_IDENTITY=PASS'
+          Start-Sleep -Seconds 2
           $tx='PROBE_' + [guid]::NewGuid().ToString('N')
           $state='STATE_' + [guid]::NewGuid().ToString('N')
           curl.exe -sS -L --max-time 45 -o post_body.txt --data-urlencode "action=register" --data-urlencode "tx=$tx" --data-urlencode "state=$state" $url
           if($LASTEXITCODE -ne 0){throw 'REGISTER_TRANSPORT'}
           $j=(Get-Content post_body.txt -Raw | ConvertFrom-Json)
           if($j.status -ne 'PASS' -or $j.facebook_write -ne 0){throw ('REGISTER_'+$j.error)}
-          curl.exe -sS -L --max-time 45 -o poll_body.txt --data-urlencode "action=poll" --data-urlencode "tx=$tx" $url
-          $p=(Get-Content poll_body.txt -Raw | ConvertFrom-Json)
+          $p=$null
+          for($i=0;$i -lt 3;$i++){
+            curl.exe -sS -L --max-time 45 -o poll_body.txt --data-urlencode "action=poll" --data-urlencode "tx=$tx" $url
+            $p=(Get-Content poll_body.txt -Raw | ConvertFrom-Json)
+            if($p.status -eq 'WAIT' -and $p.facebook_write -eq 0){break}
+            Start-Sleep -Seconds 2
+          }
           if($p.status -ne 'WAIT' -or $p.facebook_write -ne 0){throw ('POLL_'+$p.error)}
           Write-Host 'DEPLOYED_REGISTER_POLL=PASS'
           $bad='WRONG_' + [guid]::NewGuid().ToString('N')
