@@ -85,3 +85,5 @@ def main():
   txt="TMNM 8766 OWNER ONE RETRY\nGUID="+GUID+"\nPAGE_ID="+PAGE_ID+"\nCANONICAL_PAYLOAD_SHA256="+CANONICAL_PAYLOAD_SHA256+"\nIMAGE_SHA256="+IMAGE_SHA256+"\nFACEBOOK_WRITE_COUNT=0\nPOST_ID=NONE\nPUBLISH_STATE=HOLD\nDURABLE_RECEIPT=NONE\nSECOND_INVOCATION_BLOCKED=NOT_TESTED\nERROR="+type(e).__name__+":"+str(e)+"\n";rc=2
  out.write_text(txt,encoding="utf-8");print(txt,end="");return rc
 if __name__=="__main__":raise SystemExit(main())
+
+# Canonical image bytes are repository-bound solely for exact non-live release gating.
