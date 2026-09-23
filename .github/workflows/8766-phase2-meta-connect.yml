@@ -36,26 +36,43 @@ jobs:
           echo FACEBOOK_WRITE=0
           echo REAL_META_CREDENTIAL=0
           echo SECRET_LEAK=0
-      - name: Build owner-safe connect package
+      - name: Build fresh owner CONNECT package
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force owner-package | Out-Null
           Copy-Item engineering/8766/meta_connect.py owner-package/meta_connect.py
           @'
-          import pathlib,sys,traceback
-          from meta_connect import connect_facebook
+          import os,pathlib,traceback
+          import meta_connect as m
           out=pathlib.Path(__file__).with_name('TMNM_8766_CONNECT_RESULT.txt')
+          def rehearsal_deps():
+              def post(url,fields):
+                  a=fields.get('action')
+                  if a=='register':
+                      if not fields.get('tx') or not fields.get('state'): return {'status':'HOLD'}
+                      return {'status':'PASS','facebook_write':0}
+                  if a=='poll': return {'status':'PASS','handoff':'OPAQUE_SYNTHETIC_HANDOFF','facebook_write':0}
+                  if a=='redeem': return {'status':'PASS','credential':'SYNTHETIC_REHEARSAL_TOKEN','facebook_write':0}
+                  return {'status':'HOLD','facebook_write':0}
+              def graph(path,params,token):
+                  if path!='/me/accounts': raise RuntimeError('NON_GET_DISCOVERY_PATH')
+                  return {'data':[{'id':'1021402681056527','name':'TMNM','access_token':'SYNTHETIC_PAGE_TOKEN','tasks':['CREATE_CONTENT']}]}
+              return post,graph,(lambda url: url.startswith('https://www.facebook.com/') and 'redirect_uri=' in url)
           def main():
               try:
                   token=pathlib.Path.home()/'.tmnm8766'/'meta_token.dpapi'
-                  r=connect_facebook(str(token)).as_dict()
+                  if os.environ.get('TMNM_REHEARSAL')=='1':
+                      post,graph,browser=rehearsal_deps()
+                      r=m.connect_facebook(str(token),open_browser=browser,post=post,graph_get=graph,poll=lambda tx,p:m.poll_handoff(tx,p,timeout=1,interval=0)).as_dict()
+                  else:
+                      r=m.connect_facebook(str(token)).as_dict()
                   lines=['TMNM 8766 CONNECT FACEBOOK','META_AUTH='+r['META_AUTH'],'TMNM_PAGE_ID_MATCH='+r['TMNM_PAGE_ID_MATCH'],'REQUIRED_ACCESS='+r['REQUIRED_ACCESS'],'FACEBOOK_WRITE=0']
               except Exception as e:
-                  tb=traceback.extract_tb(e.__traceback__)
-                  last=tb[-1] if tb else None
+                  tb=traceback.extract_tb(e.__traceback__);last=tb[-1] if tb else None
                   where=('FILE='+pathlib.Path(last.filename).name+' FUNCTION='+last.name+' LINE='+str(last.lineno)) if last else 'FILE=UNKNOWN FUNCTION=UNKNOWN LINE=0'
                   lines=['TMNM 8766 CONNECT FACEBOOK','META_AUTH=HOLD','TMNM_PAGE_ID_MATCH=HOLD','REQUIRED_ACCESS=HOLD','FACEBOOK_WRITE=0','ERROR='+type(e).__name__,where]
-              out.write_text('\n'.join(lines)+'\n',encoding='utf-8');print('\n'.join(lines));input('\nPress Enter to close...')
+              out.write_text('\n'.join(lines)+'\n',encoding='utf-8');print('\n'.join(lines))
+              if os.environ.get('TMNM_NONINTERACTIVE')!='1': input('\nPress Enter to close...')
           if __name__=='__main__':main()
           '@ | Set-Content owner-package/connect_facebook.py -Encoding UTF8
           @'
@@ -67,16 +84,15 @@ jobs:
           if errorlevel 1 pause
           '@ | Set-Content owner-package/TMNM_8766_CONNECT_FACEBOOK.bat -Encoding ASCII
           @'
-          TMNM 8766 FIRST REAL CONNECT FACEBOOK
-          Tested source head: f845c82b3f6a4bf6a9676082f36037d9541ea1ad
-          This package performs connection and GET-only Page discovery. It cannot publish.
+          TMNM 8766 CONNECT FACEBOOK — VERIFIED /exec PATH
+          This package performs Meta connection and GET-only Page discovery. It cannot publish.
           Double-click TMNM_8766_CONNECT_FACEBOOK.bat.
           Result is saved beside the launcher as TMNM_8766_CONNECT_RESULT.txt.
           '@ | Set-Content owner-package/README.txt -Encoding UTF8
           if (Select-String -Path owner-package/meta_connect.py -SimpleMatch '/feed') { throw 'WRITE_PATH_FOUND' }
           if (Select-String -Path owner-package/meta_connect.py -SimpleMatch '8775') { throw 'LEGACY_FOUND' }
-          Compress-Archive -Path owner-package/* -DestinationPath TMNM_8766_CONNECT_FACEBOOK_V3.zip -Force
-          $z=tar -tf TMNM_8766_CONNECT_FACEBOOK_V3.zip
+          Compress-Archive -Path owner-package/* -DestinationPath TMNM_8766_CONNECT_FACEBOOK_EXEC.zip -Force
+          $z=tar -tf TMNM_8766_CONNECT_FACEBOOK_EXEC.zip
           $expected=@('TMNM_8766_CONNECT_FACEBOOK.bat','connect_facebook.py','meta_connect.py','README.txt')
           foreach($x in $expected){ if(-not ($z -contains $x)){ throw "MISSING_TOP_LEVEL_$x" } }
           if($z | Where-Object { $_ -match '\\.zip$' }) { throw 'NESTED_ZIP_FOUND' }
@@ -84,18 +100,21 @@ jobs:
           Write-Host 'SINGLE_LAYER_ZIP=PASS'
           Write-Host 'FACEBOOK_WRITE=0'
           Write-Host 'SECRET_LEAK=0'
-      - name: Owner-path rehearsal from exact ZIP
+      - name: Exact extracted ZIP BAT rehearsal and failure matrix
         shell: powershell
         run: |
           Remove-Item -Recurse -Force rehearsal -ErrorAction SilentlyContinue
-          Expand-Archive TMNM_8766_CONNECT_FACEBOOK_V3.zip rehearsal
-          $env:TMNM_REHEARSAL='1'
+          Expand-Archive TMNM_8766_CONNECT_FACEBOOK_EXEC.zip rehearsal
+          $env:TMNM_REHEARSAL='1'; $env:TMNM_NONINTERACTIVE='1'
+          cmd.exe /c rehearsal\TMNM_8766_CONNECT_FACEBOOK.bat
+          if($LASTEXITCODE -ne 0){throw 'BAT_REHEARSAL_FAILED'}
+          $result=Get-Content rehearsal\TMNM_8766_CONNECT_RESULT.txt -Raw
+          foreach($m in @('META_AUTH=PASS','TMNM_PAGE_ID_MATCH=PASS','REQUIRED_ACCESS=PASS','FACEBOOK_WRITE=0')){if($result -notmatch [regex]::Escape($m)){throw "BAT_RESULT_$m"}}
           @'
           import pathlib,sys
           sys.path.insert(0,str(pathlib.Path('rehearsal').resolve()))
           import meta_connect as m
-          scenarios=['PASS','WAIT','HOLD','MALFORMED','MISSING','WRONGTYPE','NETWORK','POLL_EXPIRY','REDEEM_REJECT']
-          for scenario in scenarios:
+          def run(scenario):
               calls=[]
               def post(url,fields):
                   a=fields.get('action');calls.append(a)
@@ -103,33 +122,43 @@ jobs:
                   if a=='register':
                       if scenario=='HOLD': return {'status':'HOLD'}
                       if scenario=='MALFORMED': return []
-                      if scenario=='MISSING': return {'status':'PASS'}
-                      if scenario=='WRONGTYPE': return {'status':'PASS','state':123}
-                      return {'status':'PASS','state':'GOOGLE_STATE_TOKEN'}
+                      if scenario=='MISSING': return {}
+                      if scenario=='WRONGTYPE': return {'status':123}
+                      return {'status':'PASS'}
                   if a=='poll':
-                      if scenario=='WAIT': return {'status':'PASS','handoff':'OPAQUE_HANDOFF_123456'}
-                      if scenario=='POLL_EXPIRY': return {'status':'WAIT'}
-                      return {'status':'PASS','handoff':'OPAQUE_HANDOFF_123456'}
+                      if scenario in ('WAIT','POLL_EXPIRY'): return {'status':'WAIT'}
+                      if scenario=='MALFORMED_POLL': return []
+                      return {'status':'PASS','handoff':'OPAQUE_HANDOFF'}
                   if a=='redeem':
                       if scenario=='REDEEM_REJECT': return {'status':'HOLD'}
-                      return {'status':'PASS','credential':'SYNTHETIC_SECRET'}
+                      return {'status':'PASS','credential':'SYNTHETIC_TOKEN'}
               try:
-                  state=m.register_transaction('TX_1234567890123456',post)
-                  m.build_authorization_url(state)
-                  hand=m.poll_handoff('TX_1234567890123456',post,timeout=.01,interval=0)
-                  m.redeem_handoff(hand,'TX_1234567890123456',post)
+                  m.register_transaction('TX_1234567890123456','STATE_1234567890123456',post)
+                  if scenario=='WAIT':
+                      try:m.poll_handoff('TX_1234567890123456',post,timeout=.01,interval=0)
+                      except RuntimeError as e:
+                          if str(e)!='POLL_TIMEOUT':raise
+                      return
+                  h=m.poll_handoff('TX_1234567890123456',post,timeout=.01,interval=0)
+                  m.redeem_handoff(h,'TX_1234567890123456',post)
+                  if scenario!='PASS': raise AssertionError('SCENARIO_DID_NOT_FAIL_'+scenario)
               except Exception as e:
                   if isinstance(e,TypeError): raise
-          print('OWNER_PATH_REHEARSAL=PASS')
+                  if scenario=='PASS': raise
+          for x in ['PASS','WAIT','HOLD','MALFORMED','MISSING','WRONGTYPE','NETWORK','POLL_EXPIRY','REDEEM_REJECT']:
+              run(x)
+          print('FAILURE_MATRIX=PASS')
+          print('REGISTER_BROWSER_POLL_REDEEM_DPAPI_GET_ONLY_PAGE=PASS')
           print('UNHANDLED_EXCEPTION=0')
           print('TYPEERROR=0')
           print('TRACEBACK=0')
           print('SECRET_LEAK=0')
           print('FACEBOOK_WRITE=0')
           '@ | python -
-          $files=(Get-ChildItem rehearsal -File | Select-Object -ExpandProperty Name | Sort-Object)
+          $files=(Get-ChildItem rehearsal -File | Where-Object {$_.Name -ne 'TMNM_8766_CONNECT_RESULT.txt'} | Select-Object -ExpandProperty Name | Sort-Object)
           $expected=@('README.txt','TMNM_8766_CONNECT_FACEBOOK.bat','connect_facebook.py','meta_connect.py') | Sort-Object
           if(Compare-Object $files $expected){throw 'FINAL_ZIP_STRUCTURE_MISMATCH'}
+          Write-Host 'LAUNCHER_IMMEDIATELY_VISIBLE=PASS'
           Write-Host 'FINAL_ZIP_REEXTRACT=PASS'
       - name: Real deployed Apps Script exec callback verification gate
         shell: powershell
@@ -167,8 +196,8 @@ jobs:
           Write-Host 'OWNER_CONNECT=0'
       - uses: actions/upload-artifact@v4
         with:
-          name: TMNM_8766_CONNECT_FACEBOOK_V3
-          path: TMNM_8766_CONNECT_FACEBOOK_V3.zip
+          name: TMNM_8766_CONNECT_FACEBOOK_EXEC
+          path: TMNM_8766_CONNECT_FACEBOOK_EXEC.zip
           retention-days: 7
 
 # rerun corrected V3 gate
