@@ -74,18 +74,62 @@ def redeem_handoff(handoff,tx,post=_form_post):
     if not isinstance(token,str) or not token:raise RuntimeError("REDEEM_HOLD")
     return token
 
-def open_private_browser(url, which=shutil.which, popen=subprocess.Popen):
+def _browser_candidates(which=shutil.which, environ=os.environ, exists=os.path.isfile, registry_reader=None):
+    """Return safe (browser, path, private_flag, source) candidates. No OAuth data."""
+    out=[];seen=set()
+    def add(name,path,flag,source):
+        if path:
+            path=os.path.expandvars(str(path).strip().strip('"'))
+            key=path.lower()
+            if key not in seen and exists(path):
+                seen.add(key);out.append((name,path,flag,source))
+    # PATH is only one source; normal Windows installs often do not publish browsers there.
+    add("EDGE",which("msedge.exe"),"--inprivate","PATH")
+    add("CHROME",which("chrome.exe"),"--incognito","PATH")
+    roots=[environ.get("PROGRAMFILES(X86)"),environ.get("PROGRAMFILES"),environ.get("LOCALAPPDATA")]
+    for root in roots:
+        if root:
+            add("EDGE",os.path.join(root,"Microsoft","Edge","Application","msedge.exe"),"--inprivate","INSTALL_PATH")
+            add("CHROME",os.path.join(root,"Google","Chrome","Application","chrome.exe"),"--incognito","INSTALL_PATH")
+    if registry_reader is None and os.name=="nt":
+        def registry_reader(exe):
+            try:
+                import winreg
+                sub=r"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\"+exe
+                for hive in (winreg.HKEY_CURRENT_USER,winreg.HKEY_LOCAL_MACHINE):
+                    for view in (0,getattr(winreg,"KEY_WOW64_32KEY",0),getattr(winreg,"KEY_WOW64_64KEY",0)):
+                        try:
+                            with winreg.OpenKey(hive,sub,0,winreg.KEY_READ|view) as k:return winreg.QueryValueEx(k,None)[0]
+                        except OSError:pass
+            except Exception:pass
+            return None
+    if registry_reader:
+        add("EDGE",registry_reader("msedge.exe"),"--inprivate","APP_PATHS")
+        add("CHROME",registry_reader("chrome.exe"),"--incognito","APP_PATHS")
+    return out
+
+def open_private_browser(url, which=shutil.which, popen=subprocess.Popen, environ=os.environ,
+                         exists=os.path.isfile, registry_reader=None, diagnostic=None):
     if not isinstance(url,str) or not url.startswith(AUTH_ENDPOINT+"?"): raise RuntimeError("BROWSER_URL_HOLD")
     if "/u/0/" in url or "/u/1/" in url: raise RuntimeError("ACCOUNT_INDEX_URL_HOLD")
-    candidates=[("msedge.exe","--inprivate"),("chrome.exe","--incognito")]
-    for exe,flag in candidates:
-        path=which(exe)
-        if path:
-            try:
-                popen([path,flag,url],close_fds=True)
-                return True
-            except OSError:
-                continue
+    candidates=_browser_candidates(which,environ,exists,registry_reader)
+    if diagnostic:
+        diagnostic("BROWSER_CANDIDATES_CHECKED="+(",".join(x[0]+":"+x[3] for x in candidates) or "NONE"))
+    # Edge preferred regardless of discovery source, then Chrome.
+    candidates.sort(key=lambda x:0 if x[0]=="EDGE" else 1)
+    for name,path,flag,source in candidates:
+        if diagnostic: diagnostic("BROWSER_LAUNCH_STAGE=TRY_"+name)
+        try:
+            popen([path,flag,url],close_fds=True)
+            if diagnostic:
+                diagnostic("BROWSER_SELECTED="+name)
+                diagnostic("BROWSER_LAUNCH_STAGE=STARTED")
+            return True
+        except OSError as e:
+            if diagnostic: diagnostic("BROWSER_LAUNCH_ERROR="+name+"_OSERROR_"+str(getattr(e,"winerror",None) or getattr(e,"errno",None) or "UNKNOWN"))
+    if diagnostic:
+        diagnostic("BROWSER_SELECTED=NONE")
+        diagnostic("BROWSER_LAUNCH_STAGE=HOLD")
     raise RuntimeError("PRIVATE_BROWSER_UNAVAILABLE")
 
 def connect_facebook(token_path,open_browser=open_private_browser,post=_form_post,graph_get=_graph_get,poll=poll_handoff):
