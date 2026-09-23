@@ -107,7 +107,7 @@ jobs:
           foreach($x in $expected){ if(-not ($z -contains $x)){ throw "MISSING_TOP_LEVEL_$x" } }
           if($z | Where-Object { $_ -match '\\.zip$' }) { throw 'NESTED_ZIP_FOUND' }
           if(Select-String -Path owner-package/meta_connect.py -SimpleMatch 'webbrowser.open') { throw 'DEFAULT_BROWSER_FALLBACK_FOUND' }
-          if(Select-String -Path owner-package/meta_connect.py -SimpleMatch '/u/1/') { throw 'ACCOUNT_INDEX_PATH_FOUND' }
+          if(Select-String -Path owner-package/meta_connect.py -Pattern 'script\.google\.com/macros/u/[0-9]+/') { throw 'ACCOUNT_INDEX_URL_CONSTRUCTION_FOUND' }
           Write-Host 'PACKAGE_GATE=PASS'
           Write-Host 'SINGLE_LAYER_ZIP=PASS'
           Write-Host 'FACEBOOK_WRITE=0'
