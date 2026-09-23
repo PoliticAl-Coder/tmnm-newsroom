@@ -1,0 +1,22 @@
+name: 8766 Definite failure diagnostics non-live
+on:
+ push:
+  branches: [ engineering/8766-phase2-meta-connect ]
+  paths: [ 'engineering/8766/owner_first_write.py', 'engineering/8766/test_definite_failure_diagnostics.py', '.github/workflows/8766-definite-failure-diagnostics.yml' ]
+jobs:
+ gate:
+  runs-on: windows-latest
+  steps:
+   - uses: actions/checkout@v4
+   - uses: actions/setup-python@v5
+     with: { python-version: '3.12' }
+   - name: Non-live diagnostic gate
+     shell: powershell
+     run: |
+      $env:PYTHONPATH="engineering/8766;engineering/master365"
+      python -m unittest -v engineering/8766/test_definite_failure_diagnostics.py
+      if($LASTEXITCODE -ne 0){throw 'DIAGNOSTIC_GATE_FAIL'}
+      $s=Get-Content engineering/8766/owner_first_write.py -Raw
+      if($s -notmatch 'META_HTTP_STATUS=' -or $s -notmatch 'META_ERROR_CODE=' -or $s -notmatch 'META_ERROR_SUBCODE=' -or $s -notmatch 'SAFE_META_MESSAGE='){throw 'SAFE_FIELDS_MISSING'}
+      Write-Host 'NONLIVE_GATE=PASS'
+      Write-Host 'FACEBOOK_WRITE=0'
