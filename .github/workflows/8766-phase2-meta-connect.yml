@@ -120,7 +120,7 @@ jobs:
           $p=Get-Content rehearsal\connect_facebook.py -Raw
           $p=$p.Replace("return {'status':'PASS','facebook_write':0}","return {'status':'HOLD','facebook_write':0}",1)
           Set-Content rehearsal\connect_facebook.py $p -Encoding UTF8
-          cmd.exe /c rehearsal\TMNM_8766_CONNECT_FACEBOOK.bat < NUL
+          cmd.exe /c "rehearsal\TMNM_8766_CONNECT_FACEBOOK.bat < NUL"
           if($LASTEXITCODE -eq 0){throw 'BAT_HOLD_EXITED_ZERO'}
           $hold=Get-Content rehearsal\TMNM_8766_CONNECT_RESULT.txt -Raw
           if($hold -notmatch 'META_AUTH=HOLD'){throw 'BAT_HOLD_RESULT_MISSING'}
