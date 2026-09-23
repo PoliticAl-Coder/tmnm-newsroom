@@ -277,8 +277,17 @@ jobs:
         shell: powershell
         run: |
           $url='https://script.google.com/macros/s/AKfycbyyPnHf2HLe0rHs2U01QzxzUvsEiqBJ2DPV8Z1asX11AKqNjBtyfd844eVDYKyKNda1/exec'
-          curl.exe -sS -L --max-time 30 -o get_body.txt $url
-          if($LASTEXITCODE -ne 0){throw 'EXEC_IDENTITY_TRANSPORT_FAILED'}
+          $probeOk=$false
+          foreach($attempt in 1..3){
+            $timer=[Diagnostics.Stopwatch]::StartNew()
+            curl.exe -sS -L --connect-timeout 10 --max-time 60 -o get_body.txt -w "HTTP=%{http_code} REMOTE=%{remote_ip} CONNECT=%{time_connect} TLS=%{time_appconnect} START=%{time_starttransfer} TOTAL=%{time_total}`n" $url
+            $rc=$LASTEXITCODE
+            $timer.Stop()
+            Write-Host ("EXEC_PROBE_ATTEMPT={0} CURL_EXIT={1} ELAPSED_MS={2}" -f $attempt,$rc,$timer.ElapsedMilliseconds)
+            if($rc -eq 0){$probeOk=$true;break}
+            Start-Sleep -Seconds (2*$attempt)
+          }
+          if(-not $probeOk){throw 'EXEC_IDENTITY_TRANSPORT_REPRODUCIBLE'}
           $g=(Get-Content get_body.txt -Raw | ConvertFrom-Json)
           if($g.service -ne 'TMNM 8766 OAuth Exchange'){throw 'EXEC_IDENTITY_SERVICE'}
           if($g.redirect_uri -ne $url){throw 'EXEC_IDENTITY_REDIRECT'}
