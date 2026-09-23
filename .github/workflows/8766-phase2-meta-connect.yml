@@ -118,7 +118,11 @@ jobs:
           foreach($m in @('META_AUTH=PASS','TMNM_PAGE_ID_MATCH=PASS','REQUIRED_ACCESS=PASS','FACEBOOK_WRITE=0')){if($result -notmatch [regex]::Escape($m)){throw "BAT_RESULT_$m"}}
           Copy-Item rehearsal\connect_facebook.py rehearsal\connect_facebook_pass.py
           $p=Get-Content rehearsal\connect_facebook.py -Raw
-          $p=$p.Replace("return {'status':'PASS','facebook_write':0}","return {'status':'HOLD','facebook_write':0}",1)
+          $old="return {'status':'PASS','facebook_write':0}"
+          $new="return {'status':'HOLD','facebook_write':0}"
+          $pos=$p.IndexOf($old)
+          if($pos -lt 0){throw 'HOLD_MUTATION_TARGET_MISSING'}
+          $p=$p.Substring(0,$pos)+$new+$p.Substring($pos+$old.Length)
           Set-Content rehearsal\connect_facebook.py $p -Encoding UTF8
           cmd.exe /c "rehearsal\TMNM_8766_CONNECT_FACEBOOK.bat < NUL"
           if($LASTEXITCODE -eq 0){throw 'BAT_HOLD_EXITED_ZERO'}
