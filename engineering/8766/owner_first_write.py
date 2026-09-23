@@ -19,7 +19,15 @@ class OneWriteMetaTransport:
   req=urllib.request.Request(f"https://graph.facebook.com/{GRAPH_VERSION}/{PAGE_ID}/feed",data=data,method="POST",headers={"Content-Type":"application/x-www-form-urlencoded"})
   try:
    with self.opener(req,timeout=30) as r: out=json.loads(r.read().decode())
-  except urllib.error.HTTPError as e:return {"kind":"definite_failure","error":"META_HTTP_"+str(e.code)}
+  except urllib.error.HTTPError as e:
+   status=str(e.code); code="UNKNOWN"; subcode="NONE"; msg="Meta rejected the request"
+   try:
+    body=json.loads(e.read().decode("utf-8","replace")); err=body.get("error") or {}
+    code=str(err.get("code","UNKNOWN")); subcode=str(err.get("error_subcode","NONE"))
+    raw=str(err.get("message") or "Meta rejected the request")
+    msg=raw.replace("\\n"," ").replace("\\r"," ")[:300]
+   except Exception: pass
+   return {"kind":"definite_failure","error":"META_HTTP_STATUS="+status+"|META_ERROR_CODE="+code+"|META_ERROR_SUBCODE="+subcode+"|SAFE_META_MESSAGE="+msg}
   except Exception:return {"kind":"ambiguous"}
   post_id=out.get("id") if isinstance(out,dict) else None
   return {"kind":"success","post_id":str(post_id)} if post_id else {"kind":"ambiguous"}
