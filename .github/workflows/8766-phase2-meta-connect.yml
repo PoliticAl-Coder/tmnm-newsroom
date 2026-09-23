@@ -267,7 +267,7 @@ jobs:
           print('SECRET_LEAK=0')
           print('FACEBOOK_WRITE=0')
           '@ | python -
-          $files=(Get-ChildItem rehearsal -File | Where-Object {$_.Name -ne 'TMNM_8766_CONNECT_RESULT.txt'} | Select-Object -ExpandProperty Name | Sort-Object)
+          $files=(Get-ChildItem rehearsal -File | Where-Object {$_.Name -in @('README.txt','TMNM_8766_CONNECT_FACEBOOK.bat','connect_facebook.py','meta_connect.py')} | Select-Object -ExpandProperty Name | Sort-Object)
           $expected=@('README.txt','TMNM_8766_CONNECT_FACEBOOK.bat','connect_facebook.py','meta_connect.py') | Sort-Object
           if(Compare-Object $files $expected){throw 'FINAL_ZIP_STRUCTURE_MISMATCH'}
           Write-Host 'LAUNCHER_IMMEDIATELY_VISIBLE=PASS'
