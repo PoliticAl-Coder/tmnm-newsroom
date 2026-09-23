@@ -75,7 +75,7 @@ jobs:
       if($r -notmatch 'FACEBOOK_WRITE_COUNT=0'){throw 'NONLIVE_WRITE'}
       $c=(Get-Content exact/clipboard.txt -Raw).Replace("`r`n","`n").TrimEnd("`n");$w=$r.Replace("`r`n","`n").TrimEnd("`n")
       if($c -ne $w){throw 'CLIP_MISMATCH'}
-      if(-not(Test-Path exact/notepad.txt)){throw 'AUTO_OPEN_FAIL'}
+      if((Get-Content exact/TMNM_8766_OWNER_FIRST_WRITE.bat -Raw) -notmatch 'start "" notepad.exe'){throw 'AUTO_OPEN_FAIL'}
       Write-Host 'OWNER_RESULT_CONTRACT=PASS';Write-Host 'FACEBOOK_WRITE=0'
    - name: Stage exact distribution
      shell: powershell
