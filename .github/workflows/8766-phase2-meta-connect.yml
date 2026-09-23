@@ -339,10 +339,22 @@ jobs:
           Write-Host 'SECRET_LEAK=0'
           Write-Host 'FACEBOOK_WRITE=0'
           Write-Host 'OWNER_CONNECT=0'
+      - name: Stage final owner files for artifact transport
+        shell: powershell
+        run: |
+          Remove-Item artifact_owner -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item artifact_owner -ItemType Directory | Out-Null
+          Expand-Archive TMNM_8766_CONNECT_FACEBOOK_EXEC.zip artifact_owner -Force
+          $root=(Get-ChildItem artifact_owner -File | Select-Object -ExpandProperty Name | Sort-Object)
+          $expected=@('README.txt','TMNM_8766_CONNECT_FACEBOOK.bat','connect_facebook.py','meta_connect.py') | Sort-Object
+          if(Compare-Object $root $expected){throw 'ARTIFACT_ROOT_STRUCTURE_MISMATCH'}
+          if(-not (Test-Path artifact_owner\\TMNM_8766_CONNECT_FACEBOOK.bat)){throw 'BAT_NOT_VISIBLE_AFTER_ONE_EXTRACTION'}
+          Write-Host 'BAT_VISIBLE_AFTER_ONE_EXTRACTION=PASS'
+          Write-Host ('FINAL_ROOT_MEMBERS='+($root -join ','))
       - uses: actions/upload-artifact@v4
         with:
           name: TMNM_8766_CONNECT_FACEBOOK_EXEC
-          path: TMNM_8766_CONNECT_FACEBOOK_EXEC.zip
+          path: artifact_owner/*
           retention-days: 7
 
 # rerun corrected V3 gate
