@@ -82,7 +82,7 @@ jobs:
               except Exception as e:
                   tb=traceback.extract_tb(e.__traceback__);last=tb[-1] if tb else None
                   where=('FILE='+pathlib.Path(last.filename).name+' FUNCTION='+last.name+' LINE='+str(last.lineno)) if last else 'FILE=UNKNOWN FUNCTION=UNKNOWN LINE=0'
-                  lines=['TMNM 8766 CONNECT FACEBOOK','META_AUTH=HOLD','TMNM_PAGE_ID_MATCH=HOLD','REQUIRED_ACCESS=HOLD','FACEBOOK_WRITE=0','ERROR='+type(e).__name__,where]
+                  lines=['TMNM 8766 CONNECT FACEBOOK','META_AUTH=HOLD','TMNM_PAGE_ID_MATCH=HOLD','REQUIRED_ACCESS=HOLD','FACEBOOK_WRITE=0','ERROR='+type(e).__name__,where]+m.get_safe_browser_diagnostics()
                   exit_code=2
               out.write_text('\n'.join(lines)+'\n',encoding='utf-8');print('\n'.join(lines))
               if os.environ.get('TMNM_NONINTERACTIVE')!='1': input('\nPress Enter to close...')
@@ -142,6 +142,8 @@ jobs:
           $hold=Get-Content rehearsal\TMNM_8766_CONNECT_RESULT.txt -Raw
           if($hold -notmatch 'META_AUTH=HOLD'){throw 'BAT_HOLD_RESULT_MISSING'}
           if($hold -match 'ModuleNotFoundError'){throw 'BAT_SECOND_INTERPRETER_LAUNCHED'}
+          if($hold -notmatch 'BROWSER_CANDIDATES_CHECKED=' -or $hold -notmatch 'BROWSER_SELECTED=' -or $hold -notmatch 'BROWSER_LAUNCH_STAGE='){throw 'SAFE_DIAGNOSTICS_NOT_PERSISTED'}
+          Write-Host 'PERSISTENT_SAFE_BROWSER_DIAGNOSTICS=PASS'
           Move-Item -Force rehearsal\connect_facebook_pass.py rehearsal\connect_facebook.py
           Write-Host 'PASS_EXIT_ZERO=PASS'
           Write-Host 'HOLD_EXIT_NONZERO=PASS'
