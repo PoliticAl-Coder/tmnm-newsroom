@@ -1,4 +1,4 @@
-"""Fresh 8766 Article Pool -> validated clean publisher integration. OFFLINE/MOCK Phase 1 only."""
+"""Fresh 8766 Article Pool -> validated clean publisher integration."""
 from __future__ import annotations
 import hashlib, json, re
 from dataclasses import dataclass
