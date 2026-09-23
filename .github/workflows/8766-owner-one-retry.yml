@@ -10,11 +10,9 @@ jobs:
    - uses: actions/checkout@v4
    - uses: actions/setup-python@v5
      with: { python-version: '3.12' }
-   - name: Acquire canonical image read-only
+   - name: Verify canonical image bytes
      shell: powershell
      run: |
-      $u='https://drive.usercontent.google.com/download?id=1lZnk6-Qg6fePUWDfRoHxUuiiQhvSYE1b&export=download&confirm=t'
-      Invoke-WebRequest -Uri $u -OutFile engineering/8766/TMNM-20260911-FB-OWNER-PROOF-01_TESTING-1-2-3.png
       $h=(Get-FileHash engineering/8766/TMNM-20260911-FB-OWNER-PROOF-01_TESTING-1-2-3.png -Algorithm SHA256).Hash
       if($h -ne '5FD5A1350B72E16E70A10587CE8282FEFE4A66612FDDDB392EFCFF46EE31CB8E'){throw "IMAGE_HASH_FAIL:$h"}
       Write-Host 'CURRENT_IMAGE_BINDING=PASS'
