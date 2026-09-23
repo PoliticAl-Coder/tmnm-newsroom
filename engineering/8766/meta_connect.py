@@ -74,6 +74,9 @@ def redeem_handoff(handoff,tx,post=_form_post):
     if not isinstance(token,str) or not token:raise RuntimeError("REDEEM_HOLD")
     return token
 
+_SAFE_BROWSER_DIAGNOSTICS=[]
+def get_safe_browser_diagnostics(): return list(_SAFE_BROWSER_DIAGNOSTICS)
+
 def _browser_candidates(which=shutil.which, environ=os.environ, exists=os.path.isfile, registry_reader=None):
     """Return safe (browser, path, private_flag, source) candidates. No OAuth data."""
     out=[];seen=set()
@@ -110,6 +113,11 @@ def _browser_candidates(which=shutil.which, environ=os.environ, exists=os.path.i
 
 def open_private_browser(url, which=shutil.which, popen=subprocess.Popen, environ=os.environ,
                          exists=os.path.isfile, registry_reader=None, diagnostic=None):
+    _SAFE_BROWSER_DIAGNOSTICS.clear()
+    external=diagnostic
+    def diagnostic(msg):
+        _SAFE_BROWSER_DIAGNOSTICS.append(msg)
+        if external: external(msg)
     if not isinstance(url,str) or not url.startswith(AUTH_ENDPOINT+"?"): raise RuntimeError("BROWSER_URL_HOLD")
     if "/u/0/" in url or "/u/1/" in url: raise RuntimeError("ACCOUNT_INDEX_URL_HOLD")
     candidates=_browser_candidates(which,environ,exists,registry_reader)
