@@ -57,7 +57,13 @@ jobs:
               def graph(path,params,token):
                   if path!='/me/accounts': raise RuntimeError('NON_GET_DISCOVERY_PATH')
                   return {'data':[{'id':'1021402681056527','name':'TMNM','access_token':'SYNTHETIC_PAGE_TOKEN','tasks':['CREATE_CONTENT']}]}
-              return post,graph,(lambda url: url.startswith('https://www.facebook.com/') and 'redirect_uri=' in url)
+              def browser(url):
+                  calls=[]
+                  ok=m.open_private_browser(url,which=lambda x:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe' if x=='msedge.exe' else None,popen=lambda argv,**kw:calls.append(argv))
+                  if not ok or len(calls)!=1 or calls[0][1]!='--inprivate': raise RuntimeError('PRIVATE_BROWSER_REHEARSAL_HOLD')
+                  print('PRIVATE_BROWSER_LAUNCH=PASS')
+                  return True
+              return post,graph,browser
           def main():
               try:
                   token=pathlib.Path.home()/'.tmnm8766'/'meta_token.dpapi'
@@ -100,6 +106,8 @@ jobs:
           $expected=@('TMNM_8766_CONNECT_FACEBOOK.bat','connect_facebook.py','meta_connect.py','README.txt')
           foreach($x in $expected){ if(-not ($z -contains $x)){ throw "MISSING_TOP_LEVEL_$x" } }
           if($z | Where-Object { $_ -match '\\.zip$' }) { throw 'NESTED_ZIP_FOUND' }
+          if(Select-String -Path owner-package/meta_connect.py -SimpleMatch 'webbrowser.open') { throw 'DEFAULT_BROWSER_FALLBACK_FOUND' }
+          if(Select-String -Path owner-package/meta_connect.py -SimpleMatch '/u/1/') { throw 'ACCOUNT_INDEX_PATH_FOUND' }
           Write-Host 'PACKAGE_GATE=PASS'
           Write-Host 'SINGLE_LAYER_ZIP=PASS'
           Write-Host 'FACEBOOK_WRITE=0'
@@ -182,6 +190,7 @@ jobs:
           $expected=@('README.txt','TMNM_8766_CONNECT_FACEBOOK.bat','connect_facebook.py','meta_connect.py') | Sort-Object
           if(Compare-Object $files $expected){throw 'FINAL_ZIP_STRUCTURE_MISMATCH'}
           Write-Host 'LAUNCHER_IMMEDIATELY_VISIBLE=PASS'
+          Write-Host 'REDIRECT_CONSISTENCY=PASS'
           Write-Host 'FINAL_ZIP_REEXTRACT=PASS'
       - name: Real deployed Apps Script exec callback verification gate
         shell: powershell
