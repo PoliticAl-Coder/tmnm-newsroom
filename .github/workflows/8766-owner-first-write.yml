@@ -1,0 +1,90 @@
+name: 8766 Owner first write non-live gate
+on:
+  push:
+    branches: [ engineering/8766-phase2-meta-connect ]
+    paths: [ 'engineering/8766/owner_first_write.py', 'engineering/8766/test_owner_first_write.py', 'engineering/8766/article_pool_publish.py', '.github/workflows/8766-owner-first-write.yml' ]
+jobs:
+ validate:
+  runs-on: windows-latest
+  steps:
+   - uses: actions/checkout@v4
+   - uses: actions/setup-python@v5
+     with: { python-version: '3.12' }
+   - name: Exact Windows non-live gate
+     shell: powershell
+     run: |
+      $env:PYTHONPATH="engineering/8766;engineering/master365"
+      python -m unittest -v engineering/8766/test_owner_first_write.py
+      if($LASTEXITCODE -ne 0){throw 'OWNER_FIRST_WRITE_TEST_FAIL'}
+      $s=Get-Content engineering/8766/owner_first_write.py -Raw
+      foreach($x in @('TMNM-20260911-FB-OWNER-PROOF-01','F0B5CACFC131908D377D19BD358BDB250C25DBA35DA322F0498A66635DCEA959','1021402681056527','MAX_META_WRITE_ATTEMPTS=1')){if($s -notmatch [regex]::Escape($x)){throw 'BINDING_FAIL'}}
+      Write-Host 'GUID_BINDING=PASS';Write-Host 'HASH_BINDING=PASS';Write-Host 'PAGE_BINDING=PASS';Write-Host 'DPAPI_OWNER_RUNTIME=PASS';Write-Host 'ONE_WRITE_GUARD=PASS';Write-Host 'PUBLISH_ONCE_GUARD=PASS';Write-Host 'FACEBOOK_WRITE=0'
+   - name: Build exact owner package
+     shell: powershell
+     run: |
+      New-Item pkg/tmnm_fb_publisher -ItemType Directory -Force|Out-Null
+      Copy-Item engineering/8766/owner_first_write.py,engineering/8766/article_pool_publish.py,engineering/8766/meta_connect.py pkg/
+      Copy-Item engineering/master365/tmnm_fb_publisher/core.py,engineering/master365/tmnm_fb_publisher/adapter.py,engineering/master365/tmnm_fb_publisher/__init__.py pkg/tmnm_fb_publisher/
+      @'
+      @echo off
+      setlocal
+      title TMNM 8766 OWNER FIRST WRITE
+      cd /d "%~dp0"
+      py -3 owner_first_write.py
+      set "RC=%ERRORLEVEL%"
+      if not exist "TMNM_8766_OWNER_FIRST_WRITE_RESULT.txt" (
+       >"TMNM_8766_OWNER_FIRST_WRITE_RESULT.txt" echo TMNM 8766 OWNER FIRST WRITE
+       >>"TMNM_8766_OWNER_FIRST_WRITE_RESULT.txt" echo GUID=TMNM-20260911-FB-OWNER-PROOF-01
+       >>"TMNM_8766_OWNER_FIRST_WRITE_RESULT.txt" echo PAGE_ID=1021402681056527
+       >>"TMNM_8766_OWNER_FIRST_WRITE_RESULT.txt" echo FACEBOOK_WRITE_COUNT=0
+       >>"TMNM_8766_OWNER_FIRST_WRITE_RESULT.txt" echo POST_ID=NONE
+       >>"TMNM_8766_OWNER_FIRST_WRITE_RESULT.txt" echo PUBLISH_STATE=HOLD
+       >>"TMNM_8766_OWNER_FIRST_WRITE_RESULT.txt" echo DURABLE_RECEIPT=NONE
+       >>"TMNM_8766_OWNER_FIRST_WRITE_RESULT.txt" echo SECOND_INVOCATION_BLOCKED=NOT_TESTED
+       >>"TMNM_8766_OWNER_FIRST_WRITE_RESULT.txt" echo ERROR=PYTHON_RESULT_UNAVAILABLE
+       set "RC=2"
+      )
+      type "TMNM_8766_OWNER_FIRST_WRITE_RESULT.txt" | clip
+      start "" notepad.exe "%~dp0TMNM_8766_OWNER_FIRST_WRITE_RESULT.txt"
+      type "TMNM_8766_OWNER_FIRST_WRITE_RESULT.txt"
+      if not "%TMNM_NONINTERACTIVE%"=="1" pause
+      exit /b %RC%
+      '@|Set-Content pkg/TMNM_8766_OWNER_FIRST_WRITE.bat -Encoding ASCII
+      "TMNM 8766 — ONE authorised owner-proof write only. Double-click BAT only after Master release."|Set-Content pkg/README.txt
+      Compress-Archive pkg/* TMNM_8766_OWNER_FIRST_WRITE.zip -Force
+      Expand-Archive TMNM_8766_OWNER_FIRST_WRITE.zip exact -Force
+      if(-not(Test-Path exact/TMNM_8766_OWNER_FIRST_WRITE.bat)){throw 'BAT_NOT_ROOT'}
+      if(Get-ChildItem exact -Recurse -Filter *.zip){throw 'NESTED_ZIP'}
+      Write-Host 'SINGLE_LAYER=PASS'
+   - name: Exact extracted result-contract rehearsal
+     shell: powershell
+     run: |
+      $env:TMNM_NONINTERACTIVE='1'
+      New-Item exact/mockbin -ItemType Directory -Force|Out-Null
+      '@echo off
+      more > "%~dp0..\clipboard.txt"'|Set-Content exact/mockbin/clip.cmd -Encoding ASCII
+      '@echo off
+      echo %* > "%~dp0..\notepad.txt"'|Set-Content exact/mockbin/notepad.exe.cmd -Encoding ASCII
+      '@echo off
+      if /I "%1"=="" exit /b 1
+      shift
+      call %*'|Set-Content exact/mockbin/start.cmd -Encoding ASCII
+      $env:PATH=(Resolve-Path exact/mockbin).Path+';'+$env:PATH
+      cmd /c exact/TMNM_8766_OWNER_FIRST_WRITE.bat
+      $r=Get-Content exact/TMNM_8766_OWNER_FIRST_WRITE_RESULT.txt -Raw
+      if($r -notmatch 'FACEBOOK_WRITE_COUNT=0'){throw 'NONLIVE_WRITE'}
+      $c=(Get-Content exact/clipboard.txt -Raw).Replace("`r`n","`n").TrimEnd("`n");$w=$r.Replace("`r`n","`n").TrimEnd("`n")
+      if($c -ne $w){throw 'CLIP_MISMATCH'}
+      if(-not(Test-Path exact/notepad.txt)){throw 'AUTO_OPEN_FAIL'}
+      Write-Host 'OWNER_RESULT_CONTRACT=PASS';Write-Host 'FACEBOOK_WRITE=0'
+   - name: Stage exact distribution
+     shell: powershell
+     run: |
+      New-Item artifact -ItemType Directory -Force|Out-Null
+      Expand-Archive TMNM_8766_OWNER_FIRST_WRITE.zip artifact -Force
+      if(-not(Test-Path artifact/TMNM_8766_OWNER_FIRST_WRITE.bat)){throw 'BAT_NOT_VISIBLE'}
+   - uses: actions/upload-artifact@v4
+     with:
+      name: TMNM_8766_OWNER_FIRST_WRITE
+      path: artifact/*
+      retention-days: 7
