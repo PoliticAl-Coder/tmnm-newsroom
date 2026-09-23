@@ -18,17 +18,41 @@ class MetaPreflightResult:
 
 class ProtectedTokenStore:
     def __init__(self,path): self.path=os.fspath(path)
-    def save(self,token):
+    @staticmethod
+    def _protect(data):
         if os.name!="nt": raise RuntimeError("WINDOWS_DPAPI_REQUIRED")
-        import win32crypt
-        blob=win32crypt.CryptProtectData(token.encode(),None,None,None,None,0)
+        import ctypes
+        from ctypes import wintypes
+        class DATA_BLOB(ctypes.Structure):
+            _fields_=[("cbData",wintypes.DWORD),("pbData",ctypes.POINTER(ctypes.c_ubyte))]
+        buf=ctypes.create_string_buffer(data)
+        src=DATA_BLOB(len(data),ctypes.cast(buf,ctypes.POINTER(ctypes.c_ubyte))); dst=DATA_BLOB()
+        crypt32=ctypes.WinDLL("crypt32",use_last_error=True); kernel32=ctypes.WinDLL("kernel32",use_last_error=True)
+        if not crypt32.CryptProtectData(ctypes.byref(src),None,None,None,None,0,ctypes.byref(dst)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:return ctypes.string_at(dst.pbData,dst.cbData)
+        finally:kernel32.LocalFree(dst.pbData)
+    @staticmethod
+    def _unprotect(data):
+        if os.name!="nt": raise RuntimeError("WINDOWS_DPAPI_REQUIRED")
+        import ctypes
+        from ctypes import wintypes
+        class DATA_BLOB(ctypes.Structure):
+            _fields_=[("cbData",wintypes.DWORD),("pbData",ctypes.POINTER(ctypes.c_ubyte))]
+        buf=ctypes.create_string_buffer(data)
+        src=DATA_BLOB(len(data),ctypes.cast(buf,ctypes.POINTER(ctypes.c_ubyte))); dst=DATA_BLOB()
+        crypt32=ctypes.WinDLL("crypt32",use_last_error=True); kernel32=ctypes.WinDLL("kernel32",use_last_error=True)
+        if not crypt32.CryptUnprotectData(ctypes.byref(src),None,None,None,None,0,ctypes.byref(dst)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:return ctypes.string_at(dst.pbData,dst.cbData)
+        finally:kernel32.LocalFree(dst.pbData)
+    def save(self,token):
+        blob=self._protect(token.encode())
         os.makedirs(os.path.dirname(self.path),exist_ok=True)
         with open(self.path,"wb") as h:h.write(blob)
     def load(self):
-        if os.name!="nt": raise RuntimeError("WINDOWS_DPAPI_REQUIRED")
-        import win32crypt
         with open(self.path,"rb") as h:blob=h.read()
-        return win32crypt.CryptUnprotectData(blob,None,None,None,0)[1].decode()
+        return self._unprotect(blob).decode()
 
 def _form_post(url,fields,timeout=15):
     data=urllib.parse.urlencode(fields).encode()
