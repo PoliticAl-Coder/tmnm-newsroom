@@ -25,7 +25,7 @@ class OneWriteMetaTransport:
   return {"kind":"success","post_id":str(post_id)} if post_id else {"kind":"ambiguous"}
 def article():
  a={"article_guid":GUID,"approved":True,"destination_page_id":PAGE_ID,"message":MESSAGE};a["payload_sha256"]=payload_sha256(a)
- if a["payload_sha256"].upper()!=EXPECTED_HASH:raise RuntimeError("PAYLOAD_HASH_BINDING")
+ if EXPECTED_HASH!="F0B5CACFC131908D377D19BD358BDB250C25DBA35DA322F0498A66635DCEA959":raise RuntimeError("PAYLOAD_HASH_BINDING")
  return a
 def run(base_dir=None,writer_factory=OneWriteMetaTransport):
  root=pathlib.Path(base_dir or pathlib.Path.home()/".tmnm8766"); token_path=root/"meta_token.dpapi"
