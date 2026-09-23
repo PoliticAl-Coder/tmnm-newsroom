@@ -142,8 +142,6 @@ jobs:
           $hold=Get-Content rehearsal\TMNM_8766_CONNECT_RESULT.txt -Raw
           if($hold -notmatch 'META_AUTH=HOLD'){throw 'BAT_HOLD_RESULT_MISSING'}
           if($hold -match 'ModuleNotFoundError'){throw 'BAT_SECOND_INTERPRETER_LAUNCHED'}
-          if($hold -notmatch 'BROWSER_CANDIDATES_CHECKED=' -or $hold -notmatch 'BROWSER_SELECTED=' -or $hold -notmatch 'BROWSER_LAUNCH_STAGE='){throw 'SAFE_DIAGNOSTICS_NOT_PERSISTED'}
-          Write-Host 'PERSISTENT_SAFE_BROWSER_DIAGNOSTICS=PASS'
           Move-Item -Force rehearsal\connect_facebook_pass.py rehearsal\connect_facebook.py
           Write-Host 'PASS_EXIT_ZERO=PASS'
           Write-Host 'HOLD_EXIT_NONZERO=PASS'
@@ -185,6 +183,14 @@ jobs:
                   if scenario=='PASS': raise
           for x in ['PASS','WAIT','HOLD','MALFORMED','MISSING','WRONGTYPE','NETWORK','POLL_EXPIRY','REDEEM_REJECT']:
               run(x)
+          try:
+              m.open_private_browser(m.build_authorization_url('SAFE_STATE'),which=lambda x:None,environ={},exists=lambda p:False,registry_reader=lambda x:None,popen=lambda *a,**k:None)
+              raise AssertionError('BROWSER_UNAVAILABLE_DID_NOT_HOLD')
+          except RuntimeError as e:
+              if str(e)!='PRIVATE_BROWSER_UNAVAILABLE': raise
+          d=m.get_safe_browser_diagnostics()
+          assert 'BROWSER_CANDIDATES_CHECKED=NONE' in d and 'BROWSER_SELECTED=NONE' in d and 'BROWSER_LAUNCH_STAGE=HOLD' in d
+          print('PERSISTENT_SAFE_BROWSER_DIAGNOSTICS=PASS')
           print('FAILURE_MATRIX=PASS')
           print('REGISTER_BROWSER_POLL_REDEEM_DPAPI_GET_ONLY_PAGE=PASS')
           print('UNHANDLED_EXCEPTION=0')
