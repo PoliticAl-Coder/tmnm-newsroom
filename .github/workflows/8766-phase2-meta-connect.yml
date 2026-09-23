@@ -67,21 +67,25 @@ jobs:
                   else:
                       r=m.connect_facebook(str(token)).as_dict()
                   lines=['TMNM 8766 CONNECT FACEBOOK','META_AUTH='+r['META_AUTH'],'TMNM_PAGE_ID_MATCH='+r['TMNM_PAGE_ID_MATCH'],'REQUIRED_ACCESS='+r['REQUIRED_ACCESS'],'FACEBOOK_WRITE=0']
+                  exit_code=0 if r['META_AUTH']=='PASS' and r['TMNM_PAGE_ID_MATCH']=='PASS' and r['REQUIRED_ACCESS']=='PASS' else 2
               except Exception as e:
                   tb=traceback.extract_tb(e.__traceback__);last=tb[-1] if tb else None
                   where=('FILE='+pathlib.Path(last.filename).name+' FUNCTION='+last.name+' LINE='+str(last.lineno)) if last else 'FILE=UNKNOWN FUNCTION=UNKNOWN LINE=0'
                   lines=['TMNM 8766 CONNECT FACEBOOK','META_AUTH=HOLD','TMNM_PAGE_ID_MATCH=HOLD','REQUIRED_ACCESS=HOLD','FACEBOOK_WRITE=0','ERROR='+type(e).__name__,where]
+                  exit_code=2
               out.write_text('\n'.join(lines)+'\n',encoding='utf-8');print('\n'.join(lines))
               if os.environ.get('TMNM_NONINTERACTIVE')!='1': input('\nPress Enter to close...')
-          if __name__=='__main__':main()
+              return exit_code
+          if __name__=='__main__': raise SystemExit(main())
           '@ | Set-Content owner-package/connect_facebook.py -Encoding UTF8
           @'
           @echo off
           title TMNM 8766 CONNECT FACEBOOK - GET ONLY
           cd /d "%~dp0"
           py -3 connect_facebook.py
-          if errorlevel 1 python connect_facebook.py
-          if errorlevel 1 pause
+          set "RC=%ERRORLEVEL%"
+          if not "%RC%"=="0" pause
+          exit /b %RC%
           '@ | Set-Content owner-package/TMNM_8766_CONNECT_FACEBOOK.bat -Encoding ASCII
           @'
           TMNM 8766 CONNECT FACEBOOK — VERIFIED /exec PATH
@@ -112,6 +116,19 @@ jobs:
           if($LASTEXITCODE -ne 0){throw 'BAT_REHEARSAL_FAILED'}
           $result=Get-Content rehearsal\TMNM_8766_CONNECT_RESULT.txt -Raw
           foreach($m in @('META_AUTH=PASS','TMNM_PAGE_ID_MATCH=PASS','REQUIRED_ACCESS=PASS','FACEBOOK_WRITE=0')){if($result -notmatch [regex]::Escape($m)){throw "BAT_RESULT_$m"}}
+          Copy-Item rehearsal\connect_facebook.py rehearsal\connect_facebook_pass.py
+          $p=Get-Content rehearsal\connect_facebook.py -Raw
+          $p=$p.Replace("return {'status':'PASS','facebook_write':0}","return {'status':'HOLD','facebook_write':0}",1)
+          Set-Content rehearsal\connect_facebook.py $p -Encoding UTF8
+          cmd.exe /c rehearsal\TMNM_8766_CONNECT_FACEBOOK.bat < NUL
+          if($LASTEXITCODE -eq 0){throw 'BAT_HOLD_EXITED_ZERO'}
+          $hold=Get-Content rehearsal\TMNM_8766_CONNECT_RESULT.txt -Raw
+          if($hold -notmatch 'META_AUTH=HOLD'){throw 'BAT_HOLD_RESULT_MISSING'}
+          if($hold -match 'ModuleNotFoundError'){throw 'BAT_SECOND_INTERPRETER_LAUNCHED'}
+          Move-Item -Force rehearsal\connect_facebook_pass.py rehearsal\connect_facebook.py
+          Write-Host 'PASS_EXIT_ZERO=PASS'
+          Write-Host 'HOLD_EXIT_NONZERO=PASS'
+          Write-Host 'NO_SECOND_INTERPRETER_AFTER_HOLD=PASS'
           @'
           import pathlib,sys
           sys.path.insert(0,str(pathlib.Path('rehearsal').resolve()))
