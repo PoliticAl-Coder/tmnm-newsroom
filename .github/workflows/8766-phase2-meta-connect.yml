@@ -131,30 +131,40 @@ jobs:
           $expected=@('README.txt','TMNM_8766_CONNECT_FACEBOOK.bat','connect_facebook.py','meta_connect.py') | Sort-Object
           if(Compare-Object $files $expected){throw 'FINAL_ZIP_STRUCTURE_MISMATCH'}
           Write-Host 'FINAL_ZIP_REEXTRACT=PASS'
-      - name: Real deployed Apps Script transport probe
+      - name: Real deployed Apps Script exec callback verification gate
         shell: powershell
         run: |
           $url='https://script.google.com/macros/s/AKfycbyyPnHf2HLe0rHs2U01QzxzUvsEiqBJ2DPV8Z1asX11AKqNjBtyfd844eVDYKyKNda1/exec'
-          curl.exe -sS --max-time 20 -D get_headers.txt -o get_body.txt $url
-          Write-Host ('GET_HTTP=' + ((Get-Content get_headers.txt | Select-String '^HTTP/' | Select-Object -Last 1).Line))
-          Write-Host ('GET_CONTENT_TYPE=' + ((Get-Content get_headers.txt | Select-String '^content-type:' | Select-Object -Last 1).Line))
-          $tx='PROBE_' + [guid]::NewGuid().ToString('N').Substring(0,24)
-          curl.exe -sS -L --max-time 45 -D post_headers.txt -o post_body.txt --data-urlencode "action=register" --data-urlencode "tx=$tx" $url
-          $rc=$LASTEXITCODE
-          Write-Host ('POST_CURL_EXIT=' + $rc)
-          if(Test-Path post_headers.txt){Write-Host ('POST_HTTP=' + ((Get-Content post_headers.txt | Select-String '^HTTP/' | Select-Object -Last 1).Line));Write-Host ('POST_LOCATION_HOST=' + (((Get-Content post_headers.txt | Select-String '^location:' | Select-Object -Last 1).Line -replace '^location:\s*https?://','') -split '/')[0])}
-          if(Test-Path post_body.txt){$raw=Get-Content post_body.txt -Raw; try{$j=$raw|ConvertFrom-Json;Write-Host ('POST_BODY_SHAPE=JSON_OBJECT');Write-Host ('REGISTER_STATUS='+$j.status);Write-Host ('REGISTER_ERROR='+$j.error);Write-Host ('STATE_PRESENT='+[bool]($j.state))}catch{Write-Host 'POST_BODY_SHAPE=NON_JSON'}}
-          if($rc -ne 0){throw 'REAL_REGISTER_TRANSPORT_FAILED'}
-          if(-not (Test-Path post_body.txt)){throw 'REAL_REGISTER_NO_BODY'}
+          curl.exe -sS -L --max-time 30 -o get_body.txt $url
+          if($LASTEXITCODE -ne 0){throw 'EXEC_IDENTITY_TRANSPORT_FAILED'}
+          $g=(Get-Content get_body.txt -Raw | ConvertFrom-Json)
+          if($g.service -ne 'TMNM 8766 OAuth Exchange'){throw 'EXEC_IDENTITY_SERVICE'}
+          if($g.redirect_uri -ne $url){throw 'EXEC_IDENTITY_REDIRECT'}
+          if($g.facebook_write -ne 0){throw 'EXEC_IDENTITY_WRITE'}
+          Write-Host 'DEPLOYED_EXEC_IDENTITY=PASS'
+          $tx='PROBE_' + [guid]::NewGuid().ToString('N')
+          $state='STATE_' + [guid]::NewGuid().ToString('N')
+          curl.exe -sS -L --max-time 45 -o post_body.txt --data-urlencode "action=register" --data-urlencode "tx=$tx" --data-urlencode "state=$state" $url
+          if($LASTEXITCODE -ne 0){throw 'REGISTER_TRANSPORT'}
           $j=(Get-Content post_body.txt -Raw | ConvertFrom-Json)
-          if($j.status -ne 'PASS' -or -not $j.state){throw ('REAL_REGISTER_NOT_PASS_'+$j.error)}
+          if($j.status -ne 'PASS' -or $j.facebook_write -ne 0){throw ('REGISTER_'+$j.error)}
           curl.exe -sS -L --max-time 45 -o poll_body.txt --data-urlencode "action=poll" --data-urlencode "tx=$tx" $url
-          if($LASTEXITCODE -ne 0){throw 'REAL_POLL_TRANSPORT_FAILED'}
           $p=(Get-Content poll_body.txt -Raw | ConvertFrom-Json)
-          Write-Host ('POLL_STATUS='+$p.status)
-          if($p.status -ne 'WAIT'){throw ('REAL_POLL_NOT_WAIT_'+$p.error)}
-          Write-Host 'REAL_DEPLOYED_REGISTER_POLL=PASS'
+          if($p.status -ne 'WAIT' -or $p.facebook_write -ne 0){throw ('POLL_'+$p.error)}
+          Write-Host 'DEPLOYED_REGISTER_POLL=PASS'
+          $bad='WRONG_' + [guid]::NewGuid().ToString('N')
+          $cb=$url+'?state='+$bad+'&code=SYNTHETIC_NON_SECRET_CODE'
+          curl.exe -sS -L --max-time 45 -o callback_body.txt $cb
+          if($LASTEXITCODE -ne 0){throw 'NEGATIVE_CALLBACK_TRANSPORT'}
+          $raw=Get-Content callback_body.txt -Raw
+          $n=$raw | ConvertFrom-Json
+          if($n.status -ne 'HOLD' -or $n.error -ne 'STATE' -or $n.facebook_write -ne 0){throw 'STATE_MISMATCH_NOT_CLOSED'}
+          if($raw -match 'SYNTHETIC_NON_SECRET_CODE'){throw 'CODE_ECHO'}
+          Write-Host 'DEPLOYED_STATE_MISMATCH=PASS'
+          Write-Host 'REDIRECT_CONSISTENCY=PASS'
+          Write-Host 'SECRET_LEAK=0'
           Write-Host 'FACEBOOK_WRITE=0'
+          Write-Host 'OWNER_CONNECT=0'
       - uses: actions/upload-artifact@v4
         with:
           name: TMNM_8766_CONNECT_FACEBOOK_V3
