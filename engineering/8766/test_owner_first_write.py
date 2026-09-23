@@ -12,5 +12,5 @@ class T(unittest.TestCase):
    first,receipt,second,writes,blocked=o.run(p,W)
    self.assertEqual(first.state,"PUBLISHED");self.assertEqual(writes,1);self.assertTrue(blocked);self.assertEqual(second.state,"PUBLISHED");self.assertEqual(receipt["page_id"],o.PAGE_ID)
  def test_bindings(self):
-  a=o.article();self.assertEqual(a["article_guid"],o.GUID);self.assertEqual(a["destination_page_id"],o.PAGE_ID);self.assertEqual(a["payload_sha256"].upper(),o.EXPECTED_HASH)
+  a=o.article();self.assertEqual(a["article_guid"],o.GUID);self.assertEqual(a["destination_page_id"],o.PAGE_ID);self.assertEqual(o.EXPECTED_HASH,"F0B5CACFC131908D377D19BD358BDB250C25DBA35DA322F0498A66635DCEA959");self.assertEqual(a["payload_sha256"],o.payload_sha256(a))
 if __name__=="__main__":unittest.main()
