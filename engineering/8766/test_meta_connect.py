@@ -18,6 +18,18 @@ class T(unittest.TestCase):
   with self.assertRaisesRegex(RuntimeError,"PRIVATE_BROWSER_UNAVAILABLE"):m.open_private_browser(u,which=lambda x:None,popen=lambda *x,**y:None)
   with self.assertRaisesRegex(RuntimeError,"ACCOUNT_INDEX_URL_HOLD"):m.open_private_browser(u+"&x=/u/1/",which=lambda x:"x",popen=lambda *x,**y:None)
   self.assertEqual(urllib.parse.parse_qs(urllib.parse.urlsplit(u).query)["redirect_uri"],[m.EXCHANGE_BASE])
+ def test_realistic_windows_browser_discovery_and_safe_diagnostics(self):
+  u=m.build_authorization_url("SYNTHETIC_STATE")
+  env={"PROGRAMFILES(X86)":"C:/Program Files (x86)","PROGRAMFILES":"C:/Program Files","LOCALAPPDATA":"C:/Users/Owner/AppData/Local"}
+  edge="C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
+  chrome="C:/Program Files/Google/Chrome/Application/chrome.exe"
+  calls=[];diag=[]
+  self.assertTrue(m.open_private_browser(u,which=lambda x:None,environ=env,exists=lambda p:p in (edge,chrome),registry_reader=lambda x:None,popen=lambda argv,**kw:calls.append(argv),diagnostic=diag.append))
+  self.assertEqual(calls[0],[edge,"--inprivate",u]);self.assertIn("BROWSER_SELECTED=EDGE",diag)
+  regchrome="C:/Users/Owner/AppData/Local/Google/Chrome/Application/chrome.exe";calls=[];diag=[]
+  self.assertTrue(m.open_private_browser(u,which=lambda x:None,environ={},exists=lambda p:p==regchrome,registry_reader=lambda x:regchrome if x=="chrome.exe" else None,popen=lambda argv,**kw:calls.append(argv),diagnostic=diag.append))
+  self.assertEqual(calls[0],[regchrome,"--incognito",u]);self.assertIn("BROWSER_SELECTED=CHROME",diag)
+  self.assertFalse(any("SYNTHETIC_STATE" in x for x in diag))
  def test_url_and_state(self):
   state="SYNTHETIC_STATE";u=m.build_authorization_url(state);parts=urllib.parse.urlsplit(u);self.assertEqual(parts.scheme,"https");self.assertEqual(parts.netloc,"www.facebook.com");self.assertEqual(parts.path,"/v26.0/dialog/oauth");q=urllib.parse.parse_qs(parts.query)
   self.assertEqual(q["client_id"],[m.APP_ID]);self.assertEqual(q["redirect_uri"],[m.META_REDIRECT_URI]);self.assertEqual(q["scope"],[",".join(m.SCOPES)]);self.assertEqual(q["state"],[state]);self.assertEqual(q["response_type"],["code"])
