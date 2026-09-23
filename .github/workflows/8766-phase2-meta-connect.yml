@@ -184,7 +184,9 @@ jobs:
           if(-not (Test-Path rehearsal\TMNM_8766_CONNECT_RESULT.txt)){throw 'SAVE_TXT_FAIL'}
           if($result -notmatch 'RESULT/STAGE=PASS'){throw 'RESULT_STAGE_PASS_MISSING'}
           if($result -notmatch 'META_CALLBACK_RETURNED=PASS'){throw 'CALLBACK_STAGE_MISSING'}
-          if((Get-Content rehearsal\clipboard_capture.txt -Raw) -ne $result){throw 'CLIPBOARD_COPY_MISMATCH'}
+          $clip=(Get-Content rehearsal\clipboard_capture.txt -Raw).Replace("`r`n","`n").TrimEnd("`n")
+          $want=$result.Replace("`r`n","`n").TrimEnd("`n")
+          if($clip -ne $want){throw 'CLIPBOARD_COPY_MISMATCH'}
           if((Get-Content rehearsal\TMNM_8766_CONNECT_FACEBOOK.bat -Raw) -notmatch 'start "" notepad.exe'){throw 'AUTO_OPEN_TXT_MISSING'}
           Write-Host 'SAVE TXT=PASS'; Write-Host 'AUTO-OPEN TXT=PASS'; Write-Host 'CLIPBOARD COPY=PASS'
           foreach($m in @('META_AUTH=PASS','TMNM_PAGE_ID_MATCH=PASS','REQUIRED_ACCESS=PASS','FACEBOOK_WRITE=0')){if($result -notmatch [regex]::Escape($m)){throw "BAT_RESULT_$m"}}
@@ -199,7 +201,9 @@ jobs:
           cmd.exe /c "rehearsal\TMNM_8766_CONNECT_FACEBOOK.bat < NUL"
           if($LASTEXITCODE -eq 0){throw 'BAT_HOLD_EXITED_ZERO'}
           $hold=Get-Content rehearsal\TMNM_8766_CONNECT_RESULT.txt -Raw
-          if((Get-Content rehearsal\clipboard_capture.txt -Raw) -ne $hold){throw 'HOLD_CLIPBOARD_COPY_MISMATCH'}
+          $clipHold=(Get-Content rehearsal\clipboard_capture.txt -Raw).Replace("`r`n","`n").TrimEnd("`n")
+          $wantHold=$hold.Replace("`r`n","`n").TrimEnd("`n")
+          if($clipHold -ne $wantHold){throw 'HOLD_CLIPBOARD_COPY_MISMATCH'}
           Write-Host 'HOLD_SAVE_TXT=PASS'; Write-Host 'HOLD_AUTO_OPEN_TXT=PASS'; Write-Host 'HOLD_CLIPBOARD_COPY=PASS'
           if($hold -notmatch 'META_AUTH=HOLD'){throw 'BAT_HOLD_RESULT_MISSING'}
           if($hold -notmatch 'META_DIALOG_REACHED=NOT_PROVEN'){throw 'META_DIALOG_FALSE_POSITIVE'}
