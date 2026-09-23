@@ -44,7 +44,8 @@ def run(base_dir=None,writer_factory=OneWriteMetaTransport):
  return first,receipt,second,writer.write_count,blocked
 def safe_result(first,receipt,write_count,blocked,error="NONE"):
  durable="PASS" if receipt and receipt.get("state")=="PUBLISHED" and receipt.get("post_id") else ("PRESENT_"+str(receipt.get("state")) if receipt else "NONE")
- effective=first.error or (receipt.get("error") if receipt else None) or error\n return "\n".join(["TMNM 8766 OWNER FIRST WRITE","GUID="+GUID,"PAGE_ID="+PAGE_ID,"FACEBOOK_WRITE_COUNT="+str(write_count),"POST_ID="+str(first.post_id or "NONE"),"PUBLISH_STATE="+str(first.state),"DURABLE_RECEIPT="+durable,"SECOND_INVOCATION_BLOCKED="+("PASS" if blocked else "HOLD"),"ERROR="+str(effective)])+"\n"
+ effective=first.error or (receipt.get("error") if receipt else None) or error
+ return "\n".join(["TMNM 8766 OWNER FIRST WRITE","GUID="+GUID,"PAGE_ID="+PAGE_ID,"FACEBOOK_WRITE_COUNT="+str(write_count),"POST_ID="+str(first.post_id or "NONE"),"PUBLISH_STATE="+str(first.state),"DURABLE_RECEIPT="+durable,"SECOND_INVOCATION_BLOCKED="+("PASS" if blocked else "HOLD"),"ERROR="+str(effective)])+"\n"
 def main():
  out=pathlib.Path(__file__).with_name("TMNM_8766_OWNER_FIRST_WRITE_RESULT.txt")
  try:
