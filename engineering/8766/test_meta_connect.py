@@ -7,6 +7,17 @@ class T(unittest.TestCase):
   self.assertEqual(m.AUTH_ENDPOINT,"https://www.facebook.com/v26.0/dialog/oauth")
   self.assertEqual(m.SCOPES,("pages_show_list","pages_read_engagement","pages_manage_posts"))
   src=p.read_text();self.assertNotIn("requests.post",src);self.assertNotIn("/feed",src);self.assertNotIn("method=\"POST\"",src.split("def _graph_get",1)[1])
+ def test_private_browser_edge_chrome_and_fail_closed(self):
+  u=m.build_authorization_url("SYNTHETIC_STATE")
+  calls=[]
+  self.assertTrue(m.open_private_browser(u,which=lambda x:"C:/Edge/msedge.exe" if x=="msedge.exe" else None,popen=lambda argv,**kw:calls.append(argv)))
+  self.assertEqual(calls,[["C:/Edge/msedge.exe","--inprivate",u]])
+  calls=[]
+  self.assertTrue(m.open_private_browser(u,which=lambda x:"C:/Chrome/chrome.exe" if x=="chrome.exe" else None,popen=lambda argv,**kw:calls.append(argv)))
+  self.assertEqual(calls,[["C:/Chrome/chrome.exe","--incognito",u]])
+  with self.assertRaisesRegex(RuntimeError,"PRIVATE_BROWSER_UNAVAILABLE"):m.open_private_browser(u,which=lambda x:None,popen=lambda *x,**y:None)
+  with self.assertRaisesRegex(RuntimeError,"ACCOUNT_INDEX_URL_HOLD"):m.open_private_browser(u+"&x=/u/1/",which=lambda x:"x",popen=lambda *x,**y:None)
+  self.assertEqual(urllib.parse.parse_qs(urllib.parse.urlsplit(u).query)["redirect_uri"],[m.EXCHANGE_BASE])
  def test_url_and_state(self):
   state="SYNTHETIC_STATE";u=m.build_authorization_url(state);parts=urllib.parse.urlsplit(u);self.assertEqual(parts.scheme,"https");self.assertEqual(parts.netloc,"www.facebook.com");self.assertEqual(parts.path,"/v26.0/dialog/oauth");q=urllib.parse.parse_qs(parts.query)
   self.assertEqual(q["client_id"],[m.APP_ID]);self.assertEqual(q["redirect_uri"],[m.META_REDIRECT_URI]);self.assertEqual(q["scope"],[",".join(m.SCOPES)]);self.assertEqual(q["state"],[state]);self.assertEqual(q["response_type"],["code"])
