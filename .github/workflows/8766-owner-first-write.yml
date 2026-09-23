@@ -50,7 +50,7 @@ jobs:
       if not "%TMNM_NONINTERACTIVE%"=="1" pause
       exit /b %RC%
       '@|Set-Content pkg/TMNM_8766_OWNER_FIRST_WRITE.bat -Encoding ASCII
-      "TMNM 8766 — ONE authorised owner-proof write only. Double-click BAT only after Master release."|Set-Content pkg/README.txt
+      "TMNM 8766 - ONE authorised owner-proof write only. Double-click BAT only after Master release."|Set-Content pkg/README.txt
       Compress-Archive pkg/* TMNM_8766_OWNER_FIRST_WRITE.zip -Force
       Expand-Archive TMNM_8766_OWNER_FIRST_WRITE.zip exact -Force
       if(-not(Test-Path exact/TMNM_8766_OWNER_FIRST_WRITE.bat)){throw 'BAT_NOT_ROOT'}
