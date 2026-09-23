@@ -35,7 +35,7 @@ class T(unittest.TestCase):
   self.assertEqual(q["client_id"],[m.APP_ID]);self.assertEqual(q["redirect_uri"],[m.META_REDIRECT_URI]);self.assertEqual(q["scope"],[",".join(m.SCOPES)]);self.assertEqual(q["state"],[state]);self.assertEqual(q["response_type"],["code"])
  def test_default_poll_ttl(self):
   import inspect
-  self.assertEqual(inspect.signature(m.poll_handoff).parameters["timeout"].default,300)
+  self.assertEqual(inspect.signature(m.poll_handoff).parameters["timeout"].default,600)
  def test_exchange_contract(self):
   calls=[]
   def post(url,fields):
