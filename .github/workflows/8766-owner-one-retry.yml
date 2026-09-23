@@ -1,0 +1,94 @@
+name: 8766 Owner one retry non-live gate
+on:
+  push:
+    branches: [ engineering/8766-phase2-meta-connect ]
+    paths: [ 'engineering/8766/owner_one_retry.py', 'engineering/8766/test_owner_one_retry.py', '.github/workflows/8766-owner-one-retry.yml' ]
+jobs:
+ gate:
+  runs-on: windows-latest
+  steps:
+   - uses: actions/checkout@v4
+   - uses: actions/setup-python@v5
+     with: { python-version: '3.12' }
+   - name: Acquire canonical image read-only
+     shell: powershell
+     run: |
+      $u='https://drive.usercontent.google.com/download?id=1lZnk6-Qg6fePUWDfRoHxUuiiQhvSYE1b&export=download&confirm=t'
+      Invoke-WebRequest -Uri $u -OutFile engineering/8766/TMNM-20260911-FB-OWNER-PROOF-01_TESTING-1-2-3.png
+      $h=(Get-FileHash engineering/8766/TMNM-20260911-FB-OWNER-PROOF-01_TESTING-1-2-3.png -Algorithm SHA256).Hash
+      if($h -ne '5FD5A1350B72E16E70A10587CE8282FEFE4A66612FDDDB392EFCFF46EE31CB8E'){throw "IMAGE_HASH_FAIL:$h"}
+      Write-Host 'CURRENT_IMAGE_BINDING=PASS'
+   - name: Exact Windows non-live route gate
+     shell: powershell
+     run: |
+      $env:PYTHONPATH="engineering/8766;engineering/master365"
+      python -m unittest -v engineering/8766/test_owner_one_retry.py
+      if($LASTEXITCODE -ne 0){throw 'NONLIVE_GATE_FAIL'}
+      $s=Get-Content engineering/8766/owner_one_retry.py -Raw
+      foreach($x in @('TMNM-20260911-FB-OWNER-PROOF-01','1021402681056527','F0B5CACFC131908D377D19BD358BDB250C25DBA35DA322F0498A66635DCEA959','5FD5A1350B72E16E70A10587CE8282FEFE4A66612FDDDB392EFCFF46EE31CB8E','/photos','MAX_META_WRITE_ATTEMPTS=1','authorize_retry','META_ERROR_TYPE','FBTRACE_ID')){if($s -notmatch [regex]::Escape($x)){throw "ASSERT_FAIL:$x"}}
+      Write-Host 'CURRENT_PAYLOAD_BINDING=PASS';Write-Host 'PHOTO_ROUTE=PASS';Write-Host 'DPAPI_OWNER_RUNTIME=PASS';Write-Host 'EXPLICIT_RETRY_GUARD=PASS';Write-Host 'MAX_ONE_WRITE=PASS';Write-Host 'PROVIDER_ERROR_CAPTURE=PASS';Write-Host 'ERROR_PROPAGATION=PASS';Write-Host 'DURABLE_RECEIPT=PASS';Write-Host 'SECOND_INVOCATION_GUARD=PASS';Write-Host 'SECRET_LEAK=0';Write-Host 'UNHANDLED_EXCEPTION=0';Write-Host 'FACEBOOK_WRITE=0'
+   - name: Build exact package
+     shell: powershell
+     run: |
+      New-Item pkg/tmnm_fb_publisher -ItemType Directory -Force|Out-Null
+      Copy-Item engineering/8766/owner_one_retry.py,engineering/8766/article_pool_publish.py,engineering/8766/meta_connect.py,engineering/8766/TMNM-20260911-FB-OWNER-PROOF-01_TESTING-1-2-3.png pkg/
+      Copy-Item engineering/master365/tmnm_fb_publisher/core.py,engineering/master365/tmnm_fb_publisher/adapter.py,engineering/master365/tmnm_fb_publisher/__init__.py pkg/tmnm_fb_publisher/
+      @'
+      @echo off
+      setlocal
+      title TMNM 8766 OWNER ONE RETRY
+      cd /d "%~dp0"
+      py -3 owner_one_retry.py
+      set "RC=%ERRORLEVEL%"
+      if not exist "TMNM_8766_OWNER_ONE_RETRY_RESULT.txt" (
+       >"TMNM_8766_OWNER_ONE_RETRY_RESULT.txt" echo TMNM 8766 OWNER ONE RETRY
+       >>"TMNM_8766_OWNER_ONE_RETRY_RESULT.txt" echo GUID=TMNM-20260911-FB-OWNER-PROOF-01
+       >>"TMNM_8766_OWNER_ONE_RETRY_RESULT.txt" echo PAGE_ID=1021402681056527
+       >>"TMNM_8766_OWNER_ONE_RETRY_RESULT.txt" echo FACEBOOK_WRITE_COUNT=0
+       >>"TMNM_8766_OWNER_ONE_RETRY_RESULT.txt" echo POST_ID=NONE
+       >>"TMNM_8766_OWNER_ONE_RETRY_RESULT.txt" echo PUBLISH_STATE=HOLD
+       >>"TMNM_8766_OWNER_ONE_RETRY_RESULT.txt" echo DURABLE_RECEIPT=NONE
+       >>"TMNM_8766_OWNER_ONE_RETRY_RESULT.txt" echo SECOND_INVOCATION_BLOCKED=NOT_TESTED
+       >>"TMNM_8766_OWNER_ONE_RETRY_RESULT.txt" echo ERROR=PYTHON_RESULT_UNAVAILABLE
+       set "RC=2"
+      )
+      type "TMNM_8766_OWNER_ONE_RETRY_RESULT.txt" | clip
+      start "" notepad.exe "%~dp0TMNM_8766_OWNER_ONE_RETRY_RESULT.txt"
+      type "TMNM_8766_OWNER_ONE_RETRY_RESULT.txt"
+      if not "%TMNM_NONINTERACTIVE%"=="1" pause
+      exit /b %RC%
+      '@|Set-Content pkg/TMNM_8766_OWNER_ONE_RETRY.bat -Encoding ASCII
+      "TMNM 8766 - ONE bounded retry only. Run only after Master release."|Set-Content pkg/README.txt -Encoding ASCII
+      Compress-Archive pkg/* TMNM_8766_OWNER_ONE_RETRY.zip -Force
+      Expand-Archive TMNM_8766_OWNER_ONE_RETRY.zip exact -Force
+      if(-not(Test-Path exact/TMNM_8766_OWNER_ONE_RETRY.bat)){throw 'BAT_NOT_ROOT'}
+      if(Get-ChildItem exact -Recurse -Filter *.zip){throw 'NESTED_ZIP'}
+      if((Get-FileHash exact/TMNM-20260911-FB-OWNER-PROOF-01_TESTING-1-2-3.png -Algorithm SHA256).Hash -ne '5FD5A1350B72E16E70A10587CE8282FEFE4A66612FDDDB392EFCFF46EE31CB8E'){throw 'PACKAGED_IMAGE_HASH'}
+      Write-Host 'SINGLE_LAYER=PASS'
+   - name: Exact extracted BAT zero-write rehearsal
+     shell: powershell
+     run: |
+      $env:TMNM_NONINTERACTIVE='1'
+      New-Item exact/mockbin -ItemType Directory -Force|Out-Null
+      '@echo off
+      more > "%~dp0..\clipboard.txt"'|Set-Content exact/mockbin/clip.cmd -Encoding ASCII
+      $env:PATH=(Resolve-Path exact/mockbin).Path+';'+$env:PATH
+      cmd.exe /c call exact\TMNM_8766_OWNER_ONE_RETRY.bat
+      if($LASTEXITCODE -ne 2){throw 'EXPECTED_SAFE_HOLD'}
+      $global:LASTEXITCODE=0
+      $r=Get-Content exact/TMNM_8766_OWNER_ONE_RETRY_RESULT.txt -Raw
+      if($r -notmatch 'FACEBOOK_WRITE_COUNT=0'){throw 'LIVE_WRITE_IN_GATE'}
+      $c=(Get-Content exact/clipboard.txt -Raw).Replace("`r`n","`n").TrimEnd("`n");$w=$r.Replace("`r`n","`n").TrimEnd("`n")
+      if($c -ne $w){throw 'CLIP_MISMATCH'}
+      if((Get-Content exact/TMNM_8766_OWNER_ONE_RETRY.bat -Raw) -notmatch 'start "" notepad.exe'){throw 'AUTO_OPEN_FAIL'}
+      Write-Host 'OWNER_RESULT_CONTRACT=PASS';Write-Host 'FACEBOOK_WRITE=0'
+   - name: Stage exact distribution
+     shell: powershell
+     run: |
+      New-Item artifact -ItemType Directory -Force|Out-Null
+      Copy-Item TMNM_8766_OWNER_ONE_RETRY.zip artifact/
+   - uses: actions/upload-artifact@v4
+     with:
+      name: TMNM_8766_OWNER_ONE_RETRY_ZIP
+      path: artifact/TMNM_8766_OWNER_ONE_RETRY.zip
+      retention-days: 7
