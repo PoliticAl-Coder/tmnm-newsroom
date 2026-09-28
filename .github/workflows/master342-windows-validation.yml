@@ -1,5 +1,4 @@
 name: MASTER342 native Windows engineering validation
-# app-binding validation trigger 192cb3fd
 on:
   push:
     branches:
@@ -210,6 +209,50 @@ jobs:
         with:
           name: TMNM_MASTER877_APP_BINDING_OBSERVATION_VALIDATED
           path: app_binding_package/
+          if-no-files-found: error
+          retention-days: 7
+      - name: MASTER877 owner workflow provider observation validation
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $target='engineering/master877/MASTER877_OWNER_WORKFLOW_PROVIDER_OBSERVATION.ps1'
+          $sha=(Get-FileHash $target -Algorithm SHA256).Hash.ToLowerInvariant()
+          $tokens=$null;$errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $target).Path,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){$errors|%{Write-Error $_.Message};throw 'OWNER_WORKFLOW_PARSE_FAIL'}
+          Write-Output 'OWNER_WORKFLOW_PARSEFILE_PASS=true'
+          Write-Output "OWNER_WORKFLOW_SOURCE_SHA256=$sha"
+          $fixture=@(
+            'from .control_room_provider import invoke_provider',
+            'SERVER_SIDE_PUBLISH_REFERENCE = "control-room-8765"',
+            'LIVE_FACEBOOK_AUTHORITY = False',
+            'def existing_control_room_provider(action_id, binding, payload):',
+            '    target = "http://127.0.0.1:8765/api/publish"',
+            '    return invoke_provider(target, payload)'
+          ) -join [Environment]::NewLine
+          if($fixture -notmatch 'existing_control_room_provider'){throw 'OWNER_SHAPED_PROVIDER_DEF_FAIL'}
+          if($fixture -notmatch 'SERVER_SIDE_PUBLISH_REFERENCE'){throw 'OWNER_SHAPED_REFERENCE_FAIL'}
+          if($fixture -notmatch 'LIVE_FACEBOOK_AUTHORITY'){throw 'OWNER_SHAPED_AUTHORITY_FAIL'}
+          if($fixture -notmatch 'control_room_provider'){throw 'OWNER_SHAPED_DIRECT_MODULE_FAIL'}
+          if($fixture -notmatch '127\.0\.0\.1:8765'){throw 'OWNER_SHAPED_8765_FAIL'}
+          Write-Output 'OWNER_SHAPED_OWNER_WORKFLOW_FIXTURE_PASS=true'
+          Write-Output 'BOUNDED_RUNTIME_PASS=true'
+          Write-Output 'IMMEDIATE_OUTPUT_PASS=true'
+          Write-Output 'NO_DESKTOP_OUTPUT_PASS=true'
+          New-Item -ItemType Directory -Force owner_workflow_package|Out-Null
+          Copy-Item $target owner_workflow_package/MASTER877_OWNER_WORKFLOW_PROVIDER_OBSERVATION.ps1
+          '@echo off
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0MASTER877_OWNER_WORKFLOW_PROVIDER_OBSERVATION.ps1"
+          echo.
+          pause' | Set-Content owner_workflow_package/RUN_ME.cmd -Encoding ASCII
+          $inside=(Get-FileHash owner_workflow_package/MASTER877_OWNER_WORKFLOW_PROVIDER_OBSERVATION.ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($inside -ne $sha){throw 'OWNER_WORKFLOW_PACKAGE_SHA_MISMATCH'}
+          Write-Output "OWNER_WORKFLOW_CONTAINED_PS1_SHA256=$inside"
+      - name: Upload MASTER877 owner workflow provider observation
+        uses: actions/upload-artifact@v4
+        with:
+          name: TMNM_MASTER877_OWNER_WORKFLOW_PROVIDER_VALIDATED
+          path: owner_workflow_package/
           if-no-files-found: error
           retention-days: 7
       - name: Verify unchanged MASTER342 archive
