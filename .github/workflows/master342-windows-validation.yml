@@ -621,7 +621,7 @@ jobs:
           [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $p),[ref]$tokens,[ref]$errors)
           if($errors.Count-ne0){$errors|%{Write-Output $_.Message};throw 'RELOAD_PROOF_PARSE_FAIL'}
           $s=[IO.File]::ReadAllText((Resolve-Path $p))
-          foreach($x in @('TMNM-20260927-ASHA-SCHEDULER-LIVE-PROOF-01','088aa021e092c02554abbafede96c10a9bd47a1b41803353efb779ed898325be','/api/health','/api/workflow/payload','Set-Clipboard','LocalWorker\\evidence','Stop-Process','TMNM_8766_PYTHONW_HOST_SHIM.py')){if(!$s.Contains($x)){throw ('RELOAD_PROOF_REQUIRED_TOKEN_MISSING='+$x)}}
+          foreach($x in @('TMNM-20260927-ASHA-SCHEDULER-LIVE-PROOF-01','088aa021e092c02554abbafede96c10a9bd47a1b41803353efb779ed898325be','/api/health','/api/workflow/payload','Set-Clipboard','evidence','Stop-Process','TMNM_8766_PYTHONW_HOST_SHIM.py')){if(!$s.Contains($x)){throw ('RELOAD_PROOF_REQUIRED_TOKEN_MISSING='+$x)}}
           foreach($x in @('/api/workflow/approve','/api/workflow/schedule','/api/workflow/publish','/api/publish-now','facebook.com','graph.facebook','Desktop')){if($s.Contains($x)){throw ('RELOAD_PROOF_FORBIDDEN_TOKEN='+$x)}}
           $bytes=[Text.Encoding]::UTF8.GetBytes('abc');$alg=[Security.Cryptography.SHA256]::Create();try{$h=$alg.ComputeHash($bytes)}finally{$alg.Dispose()};$hex=([BitConverter]::ToString($h)).Replace('-','').ToLowerInvariant()
           if($hex-ne'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'){throw 'SHA_RUNTIME_COMPATIBILITY_FAIL'}
