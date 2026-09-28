@@ -1,5 +1,5 @@
 $ErrorActionPreference='Stop'
-$pkg='TMNM-20260927-ASHA-SCHEDULER-LIVE-PROOF-01'
+$packageId='TMNM-20260927-ASHA-SCHEDULER-LIVE-PROOF-01'
 $base='http://127.0.0.1:8766'
 $evidenceDir=Join-Path $env:LOCALAPPDATA 'TMNM\LocalWorker\evidence'
 $resultPath=Join-Path $evidenceDir 'TMNM_8766_PAYLOAD_409_CAPTURE_RESULT.txt'
@@ -7,7 +7,7 @@ $lines=New-Object System.Collections.Generic.List[string]
 function Add([string]$s){$lines.Add($s);Write-Host $s}
 function BoolText($v){if($v){'true'}else{'false'}}
 try{
-  $body=@{package_id=$pkg}|ConvertTo-Json -Compress
+  $body=@{package_id=$packageId}|ConvertTo-Json -Compress
   $http=0;$raw='';$json=$null
   try{
     $r=Invoke-WebRequest -UseBasicParsing -Uri ($base+'/api/workflow/payload') -Method POST -ContentType 'application/json' -Body $body -TimeoutSec 30
