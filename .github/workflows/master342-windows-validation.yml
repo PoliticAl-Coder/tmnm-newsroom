@@ -520,6 +520,12 @@ jobs:
           foreach($form in $desktopForms){if($body.IndexOf($form,[StringComparison]::OrdinalIgnoreCase)-ge 0){throw ('APP_PY_NO_DESKTOP_OUTPUT_GATE_FAIL '+$form)}}
           Write-Output 'APP_PY_READ_ONLY_GATE=PASS'
           Write-Output 'APP_PY_NO_DESKTOP_OUTPUT_GATE=PASS'
+          $fixtureBytes=[Text.Encoding]::UTF8.GetBytes('abc')
+          $fixtureShaAlg=[Security.Cryptography.SHA256]::Create()
+          try{$fixtureHash=$fixtureShaAlg.ComputeHash($fixtureBytes)}finally{$fixtureShaAlg.Dispose()}
+          $fixtureSha=([BitConverter]::ToString($fixtureHash)).Replace('-','').ToLowerInvariant()
+          if($fixtureSha-ne'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'){throw ('APP_PY_SHA_RUNTIME_COMPATIBILITY_FAIL '+$fixtureSha)}
+          Write-Output 'APP_PY_SHA_RUNTIME_COMPATIBILITY=PASS'
           Write-Output 'APP_PY_ACQUIRE_PARSEFILE_PASS=true'
           Write-Output 'APP_PY_ACQUIRE_PARSE_ERRORS=0'
           Write-Output "APP_PY_ACQUIRE_VALIDATED_PS1_SHA256=$actual"
