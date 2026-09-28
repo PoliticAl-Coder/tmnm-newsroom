@@ -17,7 +17,7 @@ try{
  if($shim -and (Test-Path -LiteralPath $shim)){
    $R.host_shim_path=$shim;$R.host_shim_sha256=(Get-FileHash -LiteralPath $shim -Algorithm SHA256).Hash.ToLowerInvariant()
    $st=Get-Content -LiteralPath $shim -Raw
-   if($st -match "(?im)^\s*PROJECT\s*=\s*r?['\"]([^'\"]+)['\"]"){$root=$matches[1]}
+   if($st -match '(?im)^\s*PROJECT\s*=\s*r?[''"]([^''"]+)[''"]'){$root=$matches[1]}
  }
  if(-not $root){foreach($x in $p){if($x.CommandLine -match '([A-Z]:\\[^\"]*CanonicalBridgeReview_[^\\\"\s]+)'){$root=$matches[1];break}}}
  if(-not $root -or -not (Test-Path -LiteralPath $root)){throw 'EXACT_SOURCE_ROOT_NOT_RESOLVED'}

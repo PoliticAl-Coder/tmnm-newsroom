@@ -362,7 +362,7 @@ jobs:
         run: |
           $ErrorActionPreference='Stop'
           $target='engineering/batchd/TMNM_8766_RENDERER_ACQUIRE.ps1'
-          $expected='d29b92c5e3e7df94c3944d53613499a88a46d165bedaa9e6abd40f57b0a33a65'
+          $expected='26b9f0914cddd0049cb7fe2e0f4f13814437d7dc55131252b0ad2e1871865055'
           $actual=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
           if($actual -ne $expected){throw "BATCHD_EXACT_SHA_MISMATCH actual=$actual"}
           $tokens=$null;$errors=$null
