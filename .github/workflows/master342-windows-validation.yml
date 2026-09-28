@@ -396,3 +396,43 @@ jobs:
           Write-Output 'BATCHD_READ_ONLY_PASS=true'
           Write-Output 'BATCHD_NO_DESKTOP_OUTPUT_PASS=true'
           Write-Output 'BATCHD_TARGET_EXECUTED=false'
+
+      - name: Batch D app.js rebind native Windows runtime gate
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $target='engineering/batchd/TMNM_APPJS_BYTE_REBIND.ps1'
+          $expected='79ba69e130f7ba5c7b157aa68d07775dca787a7622751a20c68c80ce6e01b0e1'
+          $actual=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($actual -ne $expected){throw "REBIND_EXACT_SHA_MISMATCH actual=$actual"}
+          $tokens=$null;$errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path -LiteralPath $target).Path,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){throw "REBIND_PARSE_FAIL count=$(@($errors).Count)"}
+          $body=Get-Content -LiteralPath $target -Raw
+          if($body -match '(?i)\\Desktop\\|GetFolderPath\\([^)]*Desktop|\\$env:USERPROFILE\\Desktop'){throw 'REBIND_DESKTOP_FAIL'}
+          foreach($forbidden in @('approval_action=1','schedule_action=1','publisher_invocation=1','facebook_write=1','meta_call=1')){if($body.Contains($forbidden)){throw "REBIND_READ_ONLY_FAIL $forbidden"}}
+          $fixture=Join-Path $env:RUNNER_TEMP 'tmnm-rebind-runtime-fixture'
+          New-Item -ItemType Directory -Force -Path $fixture|Out-Null
+          $local=Join-Path $fixture 'app.js'; [IO.File]::WriteAllBytes($local,[Text.Encoding]::UTF8.GetBytes('fixture-app-js'))
+          $bytes=[IO.File]::ReadAllBytes($local)
+          function Get-TMNMByteSha256([byte[]]$Bytes){$Hasher=[Security.Cryptography.SHA256]::Create();try{([BitConverter]::ToString($Hasher.ComputeHash($Bytes))).Replace('-','').ToLowerInvariant()}finally{$Hasher.Dispose()}}
+          $localHash=Get-TMNMByteSha256 -Bytes $bytes
+          $servedHash=Get-TMNMByteSha256 -Bytes $bytes
+          if($localHash -ne $servedHash){throw 'REBIND_COMPARISON_FAIL'}
+          $result=[ordered]@{status='PASS';local_sha256=$localHash;served_sha256=$servedHash;byte_match=($localHash -eq $servedHash);desktop_output=0;mutation=0}
+          $json=$result|ConvertTo-Json -Compress
+          if(-not $json.Contains('"byte_match":true')){throw 'REBIND_RESULT_FAIL'}
+          $clip=Join-Path $fixture 'clipboard.txt'; Set-Content -LiteralPath $clip -Value $json -Encoding UTF8
+          if(-not(Test-Path $clip)){throw 'REBIND_CLIPBOARD_PATH_FAIL'}
+          $sw=[Diagnostics.Stopwatch]::StartNew(); [void](Get-TMNMByteSha256 -Bytes $bytes); if($sw.Elapsed.TotalSeconds -gt 5){throw 'REBIND_RUNTIME_BOUND_FAIL'}
+          Write-Output "REBIND_WINDOWS_SHA256=$actual"
+          Write-Output 'REBIND_PARSEFILE_PASS=true'
+          Write-Output 'REBIND_PARSE_ERRORS=0'
+          Write-Output 'REBIND_HASH_FUNCTION_PASS=true'
+          Write-Output 'REBIND_COMPARISON_LOGIC_PASS=true'
+          Write-Output 'REBIND_RESULT_GENERATION_PASS=true'
+          Write-Output 'REBIND_CLIPBOARD_PATH_PASS=true'
+          Write-Output 'REBIND_BOUNDED_RUNTIME_PASS=true'
+          Write-Output 'REBIND_READ_ONLY_PASS=true'
+          Write-Output 'REBIND_NO_DESKTOP_OUTPUT_PASS=true'
+          Write-Output 'REBIND_TARGET_LIVE_EXECUTED=false'

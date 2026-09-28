@@ -8,3 +8,4 @@ engineering/master877/MASTER877_OWNER_WORKFLOW_PROVIDER_OBSERVATION.ps1 -text
 engineering/master877/MASTER877_PUBLISH_REFERENCE_OBSERVATION.ps1 -text
 engineering/master877/MASTER877_8765_PUBLISH_NOW_OBSERVATION.ps1 -text
 engineering/batchd/TMNM_8766_RENDERER_ACQUIRE.ps1 -text
+engineering/batchd/TMNM_APPJS_BYTE_REBIND.ps1 -text
