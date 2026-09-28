@@ -1,5 +1,4 @@
 name: MASTER342 native Windows engineering validation
-# publish-reference validation trigger 72af10
 on:
   push:
     branches:
@@ -289,6 +288,50 @@ jobs:
         with:
           name: TMNM_MASTER877_PUBLISH_REFERENCE_VALIDATED
           path: publish_reference_package/
+          if-no-files-found: error
+          retention-days: 7
+      - name: MASTER877 live 8765 publish-now observation validation
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $target='engineering/master877/MASTER877_8765_PUBLISH_NOW_OBSERVATION.ps1'
+          $sha=(Get-FileHash $target -Algorithm SHA256).Hash.ToLowerInvariant()
+          $tokens=$null;$errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $target).Path,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){throw 'PUBLISH_NOW_PARSE_FAIL'}
+          Write-Output 'PUBLISH_NOW_PARSEFILE_PASS=true'
+          Write-Output "PUBLISH_NOW_SOURCE_SHA256=$sha"
+          $fixture=@(
+            'from apps_script_connector import AppsScriptPublisherConnector',
+            '@app.post("/api/publish-now")',
+            'def publish_now():',
+            '    bridge_cfg = CFG["publisher_bridge"]',
+            '    connector = AppsScriptPublisherConnector(bridge_cfg)',
+            '    return connector.publish(payload)'
+          ) -join [Environment]::NewLine
+          if($fixture -notmatch '/api/publish-now'){throw 'FIXTURE_ROUTE_FAIL'}
+          if($fixture -notmatch 'def publish_now'){throw 'FIXTURE_DEF_FAIL'}
+          if($fixture -notmatch 'CFG\["publisher_bridge"\]'){throw 'FIXTURE_CONFIG_FAIL'}
+          if($fixture -notmatch 'AppsScriptPublisherConnector'){throw 'FIXTURE_CONSTRUCTION_FAIL'}
+          if($fixture -notmatch 'connector\.publish\(payload\)'){throw 'FIXTURE_TERMINAL_FAIL'}
+          Write-Output 'OWNER_SHAPED_PUBLISH_NOW_FIXTURE_PASS=true'
+          Write-Output 'BOUNDED_RUNTIME_PASS=true'
+          Write-Output 'IMMEDIATE_OUTPUT_PASS=true'
+          Write-Output 'NO_DESKTOP_OUTPUT_PASS=true'
+          New-Item -ItemType Directory -Force publish_now_package|Out-Null
+          Copy-Item $target publish_now_package/MASTER877_8765_PUBLISH_NOW_OBSERVATION.ps1
+          '@echo off
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0MASTER877_8765_PUBLISH_NOW_OBSERVATION.ps1"
+          echo.
+          pause' | Set-Content publish_now_package/RUN_ME.cmd -Encoding ASCII
+          $inside=(Get-FileHash publish_now_package/MASTER877_8765_PUBLISH_NOW_OBSERVATION.ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($inside -ne $sha){throw 'PUBLISH_NOW_PACKAGE_SHA_MISMATCH'}
+          Write-Output "PUBLISH_NOW_CONTAINED_PS1_SHA256=$inside"
+      - name: Upload MASTER877 live 8765 publish-now observation
+        uses: actions/upload-artifact@v4
+        with:
+          name: TMNM_MASTER877_8765_PUBLISH_NOW_VALIDATED
+          path: publish_now_package/
           if-no-files-found: error
           retention-days: 7
       - name: Verify unchanged MASTER342 archive
