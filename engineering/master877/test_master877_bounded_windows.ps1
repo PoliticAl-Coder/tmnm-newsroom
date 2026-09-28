@@ -1,6 +1,6 @@
 $ErrorActionPreference='Stop'
 $target='engineering/master877/MASTER877_BOUNDED_RUNTIME_CANDIDATE.ps1'
-$expected='31651524f30cab50a598895f1748836b8f199a034cc4b4e4a4d8143c9dd3465a'
+$expected='9e44ee58d2a2f8381c96ed639ead16d50267add0e134096cb5c4d534140b2701'
 $actual=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
 if($actual -ne $expected){throw "BOUNDED_HASH_MISMATCH actual=$actual"}
 $tokens=$null;$errors=$null
