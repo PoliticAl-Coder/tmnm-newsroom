@@ -1,6 +1,6 @@
 $ErrorActionPreference='Stop'
 $target='engineering/master877/MASTER877_DETERMINISTIC_PATH_CANDIDATE.ps1'
-$expected='c3c23e3a6eba548dae6f556d96e2f8ffc27fa34ab64c14d65ffb8d01ab0b56fc'
+$expected='9c377d086c8ebd941ddcf25e65d1f577dd0ae7bdbb4c363006f5963e53cc946f'
 $actual=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant();if($actual -ne $expected){throw "DETERMINISTIC_HASH_MISMATCH actual=$actual"}
 $tokens=$null;$errors=$null;[void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $target).Path,[ref]$tokens,[ref]$errors);if(@($errors).Count){$errors|%{Write-Error ("line={0} col={1} {2}" -f $_.Extent.StartLineNumber,$_.Extent.StartColumnNumber,$_.Message)};throw "DETERMINISTIC_PARSER_FAIL count=$(@($errors).Count)"}
 # Owner-shaped Stage-2 tokenizer fixture: raw command line must never reach filesystem APIs.
@@ -10,6 +10,18 @@ foreach($m in [regex]::Matches($ownerCmd,'"([^"]+)"|([^\s"]+)')){$v=if($m.Groups
 $expectedShim='C:\Users\USER\AppData\Local\TMNM\OwnerConsole\PythonWHost\c49ca819d0dee3bb\TMNM_8766_PYTHONW_HOST_SHIM.py'
 if($tokensFound -notcontains $expectedShim){throw 'OWNER_SHAPED_QUOTED_COMMANDLINE_FIXTURE_FAIL'}
 Write-Output 'OWNER_SHAPED_QUOTED_COMMANDLINE_FIXTURE_PASS=true'
+# Owner-shaped Stage-4 fixture: generic List[object] with five mixed ordered records.
+$stage4Refs=New-Object System.Collections.Generic.List[object]
+[void]$stage4Refs.Add([ordered]@{source='PROCESS_SHIM';location='C:\TMNM\TMNM_8766_PYTHONW_HOST_SHIM.py';text='C:\TMNM\TMNM_8766_PYTHONW_HOST_SHIM.py'})
+[void]$stage4Refs.Add([ordered]@{source='PROCESS';location='PID 8766';text='"pythonw.exe" "C:\TMNM\TMNM_8766_PYTHONW_HOST_SHIM.py"'})
+[void]$stage4Refs.Add([ordered]@{source='TEXT_REFERENCE';location='C:\TMNM\Publisher8766Golden\article_pool_publish.py';line=1;text='Publisher8766Golden\article_pool_publish.py'})
+[void]$stage4Refs.Add([ordered]@{source='TEXT_REFERENCE';location='C:\TMNM\Publisher8766Golden\tmnm_fb_publisher\core.py';line=2;text='tmnm_fb_publisher'})
+[void]$stage4Refs.Add([ordered]@{source='TEXT_REFERENCE';location='C:\TMNM\Publisher8766Golden\tmnm_fb_publisher\adapter.py';line=3;text='article_pool_publish.py'})
+$stage4Array=$stage4Refs.ToArray()
+if($stage4Array.Count -ne 5){throw 'OWNER_SHAPED_STAGE4_FIXTURE_COUNT_FAIL'}
+foreach($x in $stage4Refs.ToArray()){if(-not $x.source){throw 'OWNER_SHAPED_STAGE4_FIXTURE_ENUM_FAIL'}}
+Write-Output 'OWNER_SHAPED_STAGE4_FIXTURE_PASS=true'
+
 Write-Output 'DETERMINISTIC_PARSER_PASS=true';Write-Output "DETERMINISTIC_TESTED_PS1_SHA256=$actual";Write-Output "POWERSHELL_VERSION=$($PSVersionTable.PSVersion)"
 $fake=Join-Path $env:RUNNER_TEMP 'deterministic owner';$env:LOCALAPPDATA=$fake;$root=Join-Path $fake 'TMNM\Publisher8766Golden';New-Item -ItemType Directory -Force -Path (Join-Path $root 'tmnm_fb_publisher')|Out-Null
 Set-Content -LiteralPath (Join-Path $root 'article_pool_publish.py') -Value 'fixture';Set-Content -LiteralPath (Join-Path $root 'tmnm_fb_publisher\core.py') -Value 'fixture';Set-Content -LiteralPath (Join-Path $root 'tmnm_fb_publisher\adapter.py') -Value 'fixture';Set-Content -LiteralPath (Join-Path $root 'tmnm_fb_publisher\__init__.py') -Value 'fixture'
