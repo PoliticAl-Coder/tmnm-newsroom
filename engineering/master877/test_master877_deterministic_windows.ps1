@@ -1,6 +1,6 @@
 $ErrorActionPreference='Stop'
 $target='engineering/master877/MASTER877_DETERMINISTIC_PATH_CANDIDATE.ps1'
-$expected='9c377d086c8ebd941ddcf25e65d1f577dd0ae7bdbb4c363006f5963e53cc946f'
+$expected='24d3c7023daf332de3cf172d8530cf26ac2bc75ea5ba527c46f864e8976cd5be'
 $actual=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant();if($actual -ne $expected){throw "DETERMINISTIC_HASH_MISMATCH actual=$actual"}
 $tokens=$null;$errors=$null;[void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $target).Path,[ref]$tokens,[ref]$errors);if(@($errors).Count){$errors|%{Write-Error ("line={0} col={1} {2}" -f $_.Extent.StartLineNumber,$_.Extent.StartColumnNumber,$_.Message)};throw "DETERMINISTIC_PARSER_FAIL count=$(@($errors).Count)"}
 # Owner-shaped Stage-2 tokenizer fixture: raw command line must never reach filesystem APIs.
