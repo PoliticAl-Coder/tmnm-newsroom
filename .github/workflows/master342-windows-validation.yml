@@ -641,3 +641,32 @@ jobs:
           path: batchd_reload_proof_package/
           if-no-files-found: error
           retention-days: 7
+
+      - name: Payload 409 capture native Windows gate
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $p='engineering/batchd/TMNM_8766_PAYLOAD_409_CAPTURE.ps1'
+          $tokens=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $p),[ref]$tokens,[ref]$errors)
+          if($errors.Count-ne0){$errors|%{Write-Output $_.Message};throw 'PAYLOAD_409_CAPTURE_PARSE_FAIL'}
+          $s=[IO.File]::ReadAllText((Resolve-Path $p))
+          foreach($x in @('TMNM-20260927-ASHA-SCHEDULER-LIVE-PROOF-01','/api/workflow/payload','RESPONSE_BODY=','ERROR_REASON=','REVIEW_READY=','WORKFLOW_STATUS=','ARTICLE_TEXT_PRESENT=','Set-Clipboard')){if(!$s.Contains($x)){throw ('CAPTURE_REQUIRED_TOKEN_MISSING='+$x)}}
+          foreach($x in @('Stop-Process','Start-Process','/api/workflow/approve','/api/workflow/schedule','/api/workflow/publish','/api/publish-now','facebook.com','graph.facebook','app.py')){if($s.Contains($x)){throw ('CAPTURE_SCOPE_VIOLATION='+$x)}}
+          New-Item -ItemType Directory -Force -Path batchd_payload_409_capture_package|Out-Null
+          Copy-Item -LiteralPath $p -Destination batchd_payload_409_capture_package/TMNM_8766_PAYLOAD_409_CAPTURE.ps1
+          '@echo off
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0TMNM_8766_PAYLOAD_409_CAPTURE.ps1"
+          echo.
+          pause' | Set-Content -LiteralPath batchd_payload_409_capture_package/RUN_ME_PAYLOAD_409_CAPTURE.cmd -Encoding ASCII
+          $h=(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Output 'PAYLOAD_409_CAPTURE_PARSE=PASS'
+          Write-Output 'PAYLOAD_409_CAPTURE_SCOPE=PASS'
+          Write-Output "PAYLOAD_409_CAPTURE_PS1_SHA256=$h"
+      - name: Upload payload 409 capture validated package
+        uses: actions/upload-artifact@v4
+        with:
+          name: TMNM_8766_PAYLOAD_409_CAPTURE_NATIVE_VALIDATED
+          path: batchd_payload_409_capture_package/
+          if-no-files-found: error
+          retention-days: 7
