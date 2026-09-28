@@ -660,7 +660,10 @@ jobs:
           echo.
           pause' | Set-Content -LiteralPath batchd_payload_409_capture_package/RUN_ME_PAYLOAD_409_CAPTURE.cmd -Encoding ASCII
           $h=(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant()
+          $reserved=[regex]::Matches($s,'(?im)\\$pid\\b')
+          if($reserved.Count-ne0){throw ('RESERVED_PID_ASSIGNMENT_OR_REFERENCE='+$reserved.Count)}
           Write-Output 'PAYLOAD_409_CAPTURE_PARSE=PASS'
+          Write-Output 'PAYLOAD_409_CAPTURE_NO_RESERVED_PID_ASSIGNMENT=PASS'
           Write-Output 'PAYLOAD_409_CAPTURE_SCOPE=PASS'
           Write-Output "PAYLOAD_409_CAPTURE_PS1_SHA256=$h"
       - name: Upload payload 409 capture validated package
