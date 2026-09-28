@@ -514,7 +514,10 @@ jobs:
           $exact='C:\Users\USER\AppData\Local\TMNM\OwnerConsole\CanonicalBridgeReview_579a2cf7a4da5591\tmnm_owner_console\app.py'
           if($body.IndexOf($exact,[StringComparison]::Ordinal)-lt 0){throw 'APP_PY_EXACT_TARGET_MISSING'}
           foreach($required in @('READ_ONLY=true','SOURCE_MUTATION=0','PROCESS_STOP=0','PROCESS_START=0','APPROVAL_ACTION=0','SCHEDULE_ACTION=0','PUBLISHER_INVOCATION=0','FACEBOOK_WRITE=0','META_CALL=0','DESKTOP_OUTPUT=0','Set-Clipboard')){if($body.IndexOf($required,[StringComparison]::Ordinal)-lt 0){throw "APP_PY_CONTRACT_MISSING $required"}}
-          if($body -match '(?i)Invoke-RestMethod|Invoke-WebRequest|Start-Process|Stop-Process|Remove-Item|Move-Item|Rename-Item|Copy-Item|Set-Content|Add-Content|Out-File|Desktop'){throw 'APP_PY_READ_ONLY_OR_DESKTOP_GATE_FAIL'}
+          if($body -match '(?i)Invoke-RestMethod|Invoke-WebRequest|Start-Process|Stop-Process|Remove-Item|Move-Item|Rename-Item|Copy-Item|Set-Content|Add-Content|Out-File'){throw 'APP_PY_READ_ONLY_GATE_FAIL'}
+          if($body -match '(?i)\\\\Desktop\\\\|Environment\\]::GetFolderPath\\([^)]*Desktop|\\$env:USERPROFILE\\\\Desktop'){throw 'APP_PY_NO_DESKTOP_OUTPUT_GATE_FAIL'}
+          Write-Output 'APP_PY_READ_ONLY_GATE=PASS'
+          Write-Output 'APP_PY_NO_DESKTOP_OUTPUT_GATE=PASS'
           Write-Output 'APP_PY_ACQUIRE_PARSEFILE_PASS=true'
           Write-Output 'APP_PY_ACQUIRE_PARSE_ERRORS=0'
           Write-Output "APP_PY_ACQUIRE_VALIDATED_PS1_SHA256=$actual"
