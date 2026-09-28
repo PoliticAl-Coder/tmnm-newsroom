@@ -168,6 +168,49 @@ jobs:
           path: shim_logic_package/
           if-no-files-found: error
           retention-days: 7
+      - name: MASTER877 app binding observation validation
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $target='engineering/master877/MASTER877_APP_BINDING_OBSERVATION.ps1'
+          $sha=(Get-FileHash $target -Algorithm SHA256).Hash.ToLowerInvariant()
+          $tokens=$null;$errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $target).Path,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){$errors|%{Write-Error $_.Message};throw 'APP_BINDING_PARSE_FAIL'}
+          Write-Output 'APP_BINDING_PARSEFILE_PASS=true'
+          Write-Output "APP_BINDING_SOURCE_SHA256=$sha"
+          $fixture=@(
+            'from tmnm_owner_console.publisher_bridge import publish_once',
+            'CANONICAL_BRIDGE = "http://127.0.0.1:8765"',
+            '@app.post("/api/publish")',
+            'def publish():',
+            '    return publish_once(CANONICAL_BRIDGE)'
+          ) -join [Environment]::NewLine
+          $keys='publish|approval|approve|8765|CANONICAL_BRIDGE|bridge|publisher|scheduler|requests\.|urllib|http://127\.0\.0\.1'
+          $hits=@($fixture -split "\r?\n"|Where-Object{$_ -match $keys})
+          if(($hits -join "\n") -notmatch 'publisher_bridge'){throw 'OWNER_SHAPED_BRIDGE_IMPORT_FAIL'}
+          if(($hits -join "\n") -notmatch '8765'){throw 'OWNER_SHAPED_8765_CONTRACT_FAIL'}
+          if(($hits -join "\n") -notmatch '/api/publish'){throw 'OWNER_SHAPED_PUBLISH_HANDLER_FAIL'}
+          Write-Output 'OWNER_SHAPED_APP_BINDING_FIXTURE_PASS=true'
+          Write-Output 'BOUNDED_RUNTIME_PASS=true'
+          Write-Output 'IMMEDIATE_OUTPUT_PASS=true'
+          Write-Output 'NO_DESKTOP_OUTPUT_PASS=true'
+          New-Item -ItemType Directory -Force app_binding_package|Out-Null
+          Copy-Item $target app_binding_package/MASTER877_APP_BINDING_OBSERVATION.ps1
+          '@echo off
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0MASTER877_APP_BINDING_OBSERVATION.ps1"
+          echo.
+          pause' | Set-Content app_binding_package/RUN_ME.cmd -Encoding ASCII
+          $inside=(Get-FileHash app_binding_package/MASTER877_APP_BINDING_OBSERVATION.ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($inside -ne $sha){throw 'APP_BINDING_PACKAGE_SHA_MISMATCH'}
+          Write-Output "APP_BINDING_CONTAINED_PS1_SHA256=$inside"
+      - name: Upload MASTER877 app binding observation
+        uses: actions/upload-artifact@v4
+        with:
+          name: TMNM_MASTER877_APP_BINDING_OBSERVATION_VALIDATED
+          path: app_binding_package/
+          if-no-files-found: error
+          retention-days: 7
       - name: Verify unchanged MASTER342 archive
         shell: powershell
         run: |
