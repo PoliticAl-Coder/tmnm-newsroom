@@ -71,9 +71,9 @@ try {
   Write-Host 'Stage 4/4: provenance classification...'
   foreach($p in $proc){if($p.command_line){[void]$refs.Add([ordered]@{source='PROCESS';location=('PID '+$p.pid);text=$p.command_line})}}
   $scanned=0;foreach($f in $all){if($scanned -ge $textFileLimit -or $sw.Elapsed.TotalSeconds -ge $deadlineSeconds){break};if($f.Extension -in @('.py','.json','.ini','.cfg','.conf','.yaml','.yml') -and $f.Length -le 1048576){$scanned++;try{$hits=Select-String -LiteralPath $f.FullName -Pattern 'article_pool_publish\.py|Publisher8766Golden|tmnm_fb_publisher' -CaseSensitive:$false -ErrorAction Stop|Select-Object -First 20;foreach($h in $hits){[void]$refs.Add([ordered]@{source='TEXT_REFERENCE';location=$f.FullName;line=$h.LineNumber;text=$h.Line.Trim()})}}catch{}}}
-  $R.provenance_files_scanned=$scanned;$R.article_references=$refs.ToArray()
+  $R.provenance_files_scanned=$scanned;$R.article_references=@();foreach($rr in $refs){$R.article_references += [pscustomobject]@{source=[string]$rr.source;location=[string]$rr.location;line=if($null -ne $rr.line){[int]$rr.line}else{$null};text=[string]$rr.text}}
   $goldenPath=$exact.article;$activeGolden=$false;$otherActive=$false
-  foreach($x in $refs.ToArray()){$t=[string]$x.text;if($t -and ($t -like ('*'+$goldenPath+'*') -or $t -match '(?i)Publisher8766Golden\\article_pool_publish\.py')){$activeGolden=$true};foreach($a in @($articles)){if($a.path -ne $goldenPath -and $t -and $t -like ('*'+$a.path+'*')){$otherActive=$true}}}
+  foreach($x in $refs){$t=[string]$x.text;if($t -and ($t -like ('*'+$goldenPath+'*') -or $t -match '(?i)Publisher8766Golden\\article_pool_publish\.py')){$activeGolden=$true};foreach($a in $articles){if($a.path -ne $goldenPath -and $t -and $t -like ('*'+$a.path+'*')){$otherActive=$true}}}
   if($activeGolden -and -not $otherActive){$R.publisher8766golden_classification='ACTIVE_CANONICAL'}elseif(-not $activeGolden -and $otherActive){$R.publisher8766golden_classification='STAGING_GOLDEN'}else{$R.publisher8766golden_classification='UNRESOLVED'}
   $R.classification_basis=[ordered]@{golden_path=$goldenPath;golden_referenced=$activeGolden;other_article_referenced=$otherActive}
   $R.discovery_elapsed_seconds=[Math]::Round($sw.Elapsed.TotalSeconds,2);$R.discovery_timeout=($sw.Elapsed.TotalSeconds -ge $deadlineSeconds);if($R.discovery_timeout){$R.timeout_stage='PROVENANCE'}
