@@ -539,6 +539,44 @@ jobs:
           if($inside-ne$actual){throw 'APP_PY_ACQUIRE_PACKAGE_BYTE_MISMATCH'}
           Write-Output "APP_PY_ACQUIRE_PACKAGED_PS1_SHA256=$inside"
           Write-Output 'APP_PY_ACQUIRE_PS1_BYTE_MATCH=PASS'
+      - name: Batch D workflow payload resolver repair native Windows gate
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $target='engineering/batchd/TMNM_APP_PY_WORKFLOW_PAYLOAD_RESOLVER_REPAIR.ps1'
+          $actual=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
+          $tokens=$null;$errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path -LiteralPath $target).Path,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){throw "REPAIR_PARSE_FAIL count=$(@($errors).Count)"}
+          $body=Get-Content -LiteralPath $target -Raw
+          foreach($required in @("27ae2246fc4cabf87add213e3763d1159bd6078dd7c1f7c6a2cb1e0bc443bc24","p=resolve_canonical_package(pid, allow_cache=True)","PACKAGE_NOT_IN_CURRENT_VIEW","DESKTOP_OUTPUT=0","FACEBOOK_WRITE=0","Set-Clipboard")){if($body.IndexOf($required,[StringComparison]::Ordinal)-lt0){throw "REPAIR_CONTRACT_MISSING $required"}}
+          if($body.IndexOf("complete_canonical_package(",[StringComparison]::Ordinal)-ge0 -or $body.IndexOf("metadata_canonical_package(",[StringComparison]::Ordinal)-ge0 -or $body.IndexOf("owner_workflow.py",[StringComparison]::OrdinalIgnoreCase)-ge0){throw 'REPAIR_SCOPE_VIOLATION'}
+          $fixture=Join-Path $env:RUNNER_TEMP 'tmnm_sha_fixture.txt'
+          [IO.File]::WriteAllText($fixture,'abc',(New-Object Text.UTF8Encoding($false)))
+          $alg=[Security.Cryptography.SHA256]::Create();try{$h=$alg.ComputeHash([IO.File]::ReadAllBytes($fixture))}finally{$alg.Dispose()}
+          $hs=([BitConverter]::ToString($h)).Replace('-','').ToLowerInvariant()
+          if($hs-ne'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'){throw 'SHA_RUNTIME_COMPATIBILITY_FAIL'}
+          Write-Output 'REPAIR_PARSE=PASS'
+          Write-Output 'REPAIR_SHA_RUNTIME_COMPATIBILITY=PASS'
+          Write-Output 'REPAIR_SCOPE_GATE=PASS'
+          Write-Output "REPAIR_VALIDATED_PS1_SHA256=$actual"
+          New-Item -ItemType Directory -Force -Path batchd_payload_resolver_repair_package|Out-Null
+          Copy-Item -LiteralPath $target -Destination batchd_payload_resolver_repair_package/TMNM_APP_PY_WORKFLOW_PAYLOAD_RESOLVER_REPAIR.ps1
+          '@echo off
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0TMNM_APP_PY_WORKFLOW_PAYLOAD_RESOLVER_REPAIR.ps1"
+          echo.
+          pause' | Set-Content -LiteralPath batchd_payload_resolver_repair_package/RUN_ME_CONTROLLED_REPAIR.cmd -Encoding ASCII
+          $inside=(Get-FileHash -LiteralPath batchd_payload_resolver_repair_package/TMNM_APP_PY_WORKFLOW_PAYLOAD_RESOLVER_REPAIR.ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($inside-ne$actual){throw 'REPAIR_PACKAGE_BYTE_MISMATCH'}
+          Write-Output "REPAIR_PACKAGED_PS1_SHA256=$inside"
+          Write-Output 'REPAIR_PS1_BYTE_MATCH=PASS'
+      - name: Upload Batch D workflow payload resolver repair validated package
+        uses: actions/upload-artifact@v4
+        with:
+          name: TMNM_APP_PY_WORKFLOW_PAYLOAD_RESOLVER_REPAIR_NATIVE_VALIDATED
+          path: batchd_payload_resolver_repair_package/
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload Batch D one-file app.py acquisition validated package
         uses: actions/upload-artifact@v4
         with:
