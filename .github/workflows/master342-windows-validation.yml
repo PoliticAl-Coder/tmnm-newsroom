@@ -409,7 +409,7 @@ jobs:
           [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path -LiteralPath $target).Path,[ref]$tokens,[ref]$errors)
           if(@($errors).Count){throw "REBIND_PARSE_FAIL count=$(@($errors).Count)"}
           $body=Get-Content -LiteralPath $target -Raw
-          if($body -match '(?i)\\Desktop\\|GetFolderPath\\([^)]*Desktop|\\$env:USERPROFILE\\Desktop'){throw 'REBIND_DESKTOP_FAIL'}
+          if($body.Contains('\\Desktop\\') -or $body.Contains('$env:USERPROFILE\\Desktop') -or $body.Contains('GetFolderPath(')){throw 'REBIND_DESKTOP_FAIL'}
           foreach($forbidden in @('approval_action=1','schedule_action=1','publisher_invocation=1','facebook_write=1','meta_call=1')){if($body.Contains($forbidden)){throw "REBIND_READ_ONLY_FAIL $forbidden"}}
           $fixture=Join-Path $env:RUNNER_TEMP 'tmnm-rebind-runtime-fixture'
           New-Item -ItemType Directory -Force -Path $fixture|Out-Null
