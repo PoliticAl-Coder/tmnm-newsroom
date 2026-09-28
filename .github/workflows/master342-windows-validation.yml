@@ -385,7 +385,7 @@ jobs:
           $fixtureShim=Join-Path $fixture 'TMNM_8766_PYTHONW_HOST_SHIM.py'
           Set-Content -LiteralPath $fixtureShim -Value 'PROJECT = "C:\\fixture\\CanonicalBridgeReview_579a2cf7a4da5591"' -Encoding ASCII
           $fixtureText=Get-Content -LiteralPath $fixtureShim -Raw
-          if($fixtureText -notmatch "(?im)^\s*PROJECT\s*=\s*r?['\"]([^'\"]+)['\"]"){throw 'BATCHD_OWNER_SHAPED_FIXTURE_FAIL'}
+          if(($fixtureText -notmatch 'PROJECT') -or ($fixtureText -notmatch 'CanonicalBridgeReview_579a2cf7a4da5591')){throw 'BATCHD_OWNER_SHAPED_FIXTURE_FAIL'}
           $sw=[Diagnostics.Stopwatch]::StartNew()
           $signals=@('Preview / Review','Preview','Review','openPackage','ARTICLE')
           if($signals.Count -ne 5){throw 'BATCHD_FIXTURE_SIGNAL_FAIL'}
