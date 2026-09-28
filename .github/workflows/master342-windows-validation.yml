@@ -1,5 +1,4 @@
 name: MASTER342 native Windows engineering validation
-# shim-logic validation trigger 39cf322d
 on:
   push:
     branches:
@@ -137,13 +136,13 @@ jobs:
           if(@($errors).Count){$errors|%{Write-Error $_.Message};throw 'SHIM_LOGIC_PARSE_FAIL'}
           Write-Output 'SHIM_LOGIC_PARSEFILE_PASS=true'
           Write-Output "SHIM_LOGIC_SOURCE_SHA256=$sha"
-          $fixture=@'
-import os, sys, runpy
-BASE = os.path.dirname(os.path.abspath(__file__))
-TARGET = os.path.join(BASE, "..", "Publisher8766Golden", "article_pool_publish.py")
-sys.argv[0] = TARGET
-runpy.run_path(TARGET, run_name="__main__")
-'@
+          $fixture = @(
+            'import os, sys, runpy',
+            'BASE = os.path.dirname(os.path.abspath(__file__))',
+            'TARGET = os.path.join(BASE, "..", "Publisher8766Golden", "article_pool_publish.py")',
+            'sys.argv[0] = TARGET',
+            'runpy.run_path(TARGET, run_name="__main__")'
+          ) -join [Environment]::NewLine
           $keys='runpy|exec\s*\(|open\s*\(|subprocess|argv|environ|os\.getenv|getenv\s*\(|pathlib|Path\s*\(|join\s*\(|abspath|realpath|resolve\s*\(|dirname|__file__|base64|b64decode|decode\s*\(|compile\s*\(|importlib|site\.add|sys\.path|chdir|Popen|call\s*\(|check_call|check_output|python'
           $hits=@($fixture -split "\r?\n"|Where-Object{$_ -match $keys})
           if($hits.Count -lt 4){throw 'OWNER_SHAPED_SHIM_LOGIC_FIXTURE_FAIL'}
