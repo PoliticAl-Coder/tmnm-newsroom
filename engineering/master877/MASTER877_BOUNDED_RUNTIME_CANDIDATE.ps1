@@ -19,6 +19,7 @@ try {
   $roots=New-Object System.Collections.Generic.List[string]
   @((Join-Path $env:LOCALAPPDATA 'TMNM'),(Join-Path $env:APPDATA 'TMNM'),(Join-Path $env:USERPROFILE 'TMNM'),(Join-Path $env:USERPROFILE 'Documents\TMNM'),(Join-Path $env:USERPROFILE 'Desktop\TMNM')) | ForEach-Object {if($_ -and (Test-Path -LiteralPath $_)){[void]$roots.Add($_)}}
   foreach($p in $proc){foreach($s in @($p.executable,$p.command_line)){if($s){[regex]::Matches($s,'(?i)([A-Z]:\\[^"\s]+)')|ForEach-Object{$q=$_.Groups[1].Value.Trim('"');if(Test-Path -LiteralPath $q){$d=if((Get-Item -LiteralPath $q).PSIsContainer){$q}else{Split-Path -Parent $q};if($d -and $d -match '(?i)TMNM|Publisher8766Golden|tmnm_fb_publisher' -and -not $roots.Contains($d)){[void]$roots.Add($d)}}}}}
+  }
   $R.search_roots=@($roots);$all=New-Object System.Collections.Generic.List[object];$seen=@{};$timedOut=$false
   foreach($rt in $roots){
     if($sw.Elapsed.TotalSeconds -ge $deadlineSeconds){$timedOut=$true;break}
