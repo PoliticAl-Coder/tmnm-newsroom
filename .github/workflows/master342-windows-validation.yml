@@ -46,6 +46,11 @@ jobs:
             context='tmnm/master877-parser'
           } | ConvertTo-Json -Compress
           Invoke-RestMethod -Method Post -Headers @{Authorization="Bearer $env:GH_TOKEN";Accept='application/vnd.github+json'} -ContentType 'application/json' -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA" -Body $body | Out-Null
+      - name: MASTER877 bounded successor native validation
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          powershell -NoProfile -ExecutionPolicy Bypass -File engineering/master877/test_master877_bounded_windows.ps1
       - name: Verify unchanged MASTER342 archive
         shell: powershell
         run: |
