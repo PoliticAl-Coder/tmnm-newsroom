@@ -549,7 +549,7 @@ jobs:
           [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path -LiteralPath $target).Path,[ref]$tokens,[ref]$errors)
           if(@($errors).Count){throw "REPAIR_PARSE_FAIL count=$(@($errors).Count)"}
           $body=Get-Content -LiteralPath $target -Raw
-          foreach($required in @("27ae2246fc4cabf87add213e3763d1159bd6078dd7c1f7c6a2cb1e0bc443bc24","p=resolve_canonical_package(pid, allow_cache=True)","PACKAGE_NOT_IN_CURRENT_VIEW","DESKTOP_OUTPUT=0","FACEBOOK_WRITE=0","Set-Clipboard")){if($body.IndexOf($required,[StringComparison]::Ordinal)-lt0){throw "REPAIR_CONTRACT_MISSING $required"}}
+          foreach($required in @("27ae2246fc4cabf87add213e3763d1159bd6078dd7c1f7c6a2cb1e0bc443bc24","p=resolve_canonical_package(pid,allow_cache=True)","PACKAGE_NOT_IN_CURRENT_VIEW","DESKTOP_OUTPUT=0","FACEBOOK_WRITE=0","Set-Clipboard")){if($body.IndexOf($required,[StringComparison]::Ordinal)-lt0){throw "REPAIR_CONTRACT_MISSING $required"}}
           if($body.IndexOf("complete_canonical_package(",[StringComparison]::Ordinal)-ge0 -or $body.IndexOf("metadata_canonical_package(",[StringComparison]::Ordinal)-ge0 -or $body.IndexOf("owner_workflow.py",[StringComparison]::OrdinalIgnoreCase)-ge0){throw 'REPAIR_SCOPE_VIOLATION'}
           $fixture=Join-Path $env:RUNNER_TEMP 'tmnm_sha_fixture.txt'
           [IO.File]::WriteAllText($fixture,'abc',(New-Object Text.UTF8Encoding($false)))
@@ -559,6 +559,29 @@ jobs:
           Write-Output 'REPAIR_PARSE=PASS'
           Write-Output 'REPAIR_SHA_RUNTIME_COMPATIBILITY=PASS'
           Write-Output 'REPAIR_SCOPE_GATE=PASS'
+          $fixture='engineering/batchd/fixtures/app_py_exact_27ae2246.py'
+          if(!(Test-Path -LiteralPath $fixture)){throw 'EXACT_APP_FIXTURE_MISSING'}
+          $fixtureSha=(Get-FileHash -LiteralPath $fixture -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($fixtureSha-ne'27ae2246fc4cabf87add213e3763d1159bd6078dd7c1f7c6a2cb1e0bc443bc24'){throw 'EXACT_APP_FIXTURE_SHA_FAIL'}
+          $src=[IO.File]::ReadAllText($fixture)
+          $old="if u.path=='/api/workflow/payload':`n            pid=str(body.get('package_id') or '')`n            p=CACHE.get(pid)`n            if not p:return self.sendj({'error':'PACKAGE_NOT_IN_CURRENT_VIEW'},404)"
+          $new="if u.path=='/api/workflow/payload':`n            pid=str(body.get('package_id') or '')`n            p=resolve_canonical_package(pid,allow_cache=True)`n            if not p:return self.sendj({'error':'PACKAGE_NOT_IN_CURRENT_VIEW'},404)"
+          $targetCount=([regex]::Matches($src,[regex]::Escape($old))).Count
+          if($targetCount-ne1){throw "TARGET_COUNT_FAIL=$targetCount"}
+          $candidate=$src.Replace($old,$new)
+          $changeCount=([regex]::Matches($candidate,[regex]::Escape($new))).Count
+          if($changeCount-ne1){throw "CHANGE_COUNT_FAIL=$changeCount"}
+          if($candidate.Replace($new,$old)-cne$src){throw 'ONLY_EXPECTED_CHANGE_FAIL'}
+          $candidatePath=Join-Path $env:RUNNER_TEMP 'app_candidate.py'
+          [IO.File]::WriteAllText($candidatePath,$candidate,(New-Object Text.UTF8Encoding($false)))
+          python -m py_compile $candidatePath
+          if($LASTEXITCODE-ne0){throw 'PYTHON_PARSE_FAIL'}
+          $candidateSha=(Get-FileHash -LiteralPath $candidatePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Output 'REPAIR_TARGET_COUNT=1'
+          Write-Output 'REPAIR_CHANGE_COUNT=1'
+          Write-Output 'REPAIR_ONLY_EXPECTED_CHANGE=PASS'
+          Write-Output 'REPAIR_PYTHON_PARSE=PASS'
+          Write-Output "REPAIR_CANDIDATE_POST_SHA256=$candidateSha"
           Write-Output "REPAIR_VALIDATED_PS1_SHA256=$actual"
           New-Item -ItemType Directory -Force -Path batchd_payload_resolver_repair_package|Out-Null
           Copy-Item -LiteralPath $target -Destination batchd_payload_resolver_repair_package/TMNM_APP_PY_WORKFLOW_PAYLOAD_RESOLVER_REPAIR.ps1
