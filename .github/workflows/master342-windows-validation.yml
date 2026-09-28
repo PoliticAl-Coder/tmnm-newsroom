@@ -1,5 +1,5 @@
 name: MASTER342 native Windows engineering validation
-# 8765-publish-now trigger 434c06
+# Batch-D native-Windows push trigger 20260928-1606
 on:
   push:
     branches:
