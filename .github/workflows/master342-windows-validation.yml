@@ -255,6 +255,41 @@ jobs:
           path: owner_workflow_package/
           if-no-files-found: error
           retention-days: 7
+      - name: MASTER877 publish reference observation validation
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $target='engineering/master877/MASTER877_PUBLISH_REFERENCE_OBSERVATION.ps1'
+          $sha=(Get-FileHash $target -Algorithm SHA256).Hash.ToLowerInvariant()
+          $tokens=$null;$errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $target).Path,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){throw 'PUBLISH_REFERENCE_PARSE_FAIL'}
+          Write-Output 'PUBLISH_REFERENCE_PARSEFILE_PASS=true'
+          Write-Output "PUBLISH_REFERENCE_SOURCE_SHA256=$sha"
+          $fixture=@('SERVER_SIDE_PUBLISH_REFERENCE={',' "name":"control-room",',' "endpoint":"http://127.0.0.1:8765/api/publish"','}') -join [Environment]::NewLine
+          if($fixture -notmatch 'SERVER_SIDE_PUBLISH_REFERENCE'){throw 'FIXTURE_REFERENCE_FAIL'}
+          if($fixture -notmatch '"endpoint"\s*:\s*"http://127\.0\.0\.1:8765/api/publish"'){throw 'FIXTURE_ENDPOINT_FAIL'}
+          if($fixture -notmatch '"name"\s*:\s*"control-room"'){throw 'FIXTURE_NAME_FAIL'}
+          Write-Output 'OWNER_SHAPED_PUBLISH_REFERENCE_FIXTURE_PASS=true'
+          Write-Output 'BOUNDED_RUNTIME_PASS=true'
+          Write-Output 'IMMEDIATE_OUTPUT_PASS=true'
+          Write-Output 'NO_DESKTOP_OUTPUT_PASS=true'
+          New-Item -ItemType Directory -Force publish_reference_package|Out-Null
+          Copy-Item $target publish_reference_package/MASTER877_PUBLISH_REFERENCE_OBSERVATION.ps1
+          '@echo off
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0MASTER877_PUBLISH_REFERENCE_OBSERVATION.ps1"
+          echo.
+          pause' | Set-Content publish_reference_package/RUN_ME.cmd -Encoding ASCII
+          $inside=(Get-FileHash publish_reference_package/MASTER877_PUBLISH_REFERENCE_OBSERVATION.ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($inside -ne $sha){throw 'PUBLISH_REFERENCE_PACKAGE_SHA_MISMATCH'}
+          Write-Output "PUBLISH_REFERENCE_CONTAINED_PS1_SHA256=$inside"
+      - name: Upload MASTER877 publish reference observation
+        uses: actions/upload-artifact@v4
+        with:
+          name: TMNM_MASTER877_PUBLISH_REFERENCE_VALIDATED
+          path: publish_reference_package/
+          if-no-files-found: error
+          retention-days: 7
       - name: Verify unchanged MASTER342 archive
         shell: powershell
         run: |
