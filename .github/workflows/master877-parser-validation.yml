@@ -1,0 +1,42 @@
+name: MASTER877 parser-only validation
+on:
+  push:
+    branches:
+      - engineering/master342-windows-validation
+    paths:
+      - engineering/master877/MASTER877_CORRECTED_PARSER_TARGET.ps1
+      - .github/workflows/master877-parser-validation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parser-only:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Native PowerShell parser validation without execution
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $target = 'engineering/master877/MASTER877_CORRECTED_PARSER_TARGET.ps1'
+          $expected = '21bee519ca6ab8e2d11a95aea79c579f11b26a35e8ebccf75749b7f51d07ea8e'
+          $actual = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Output "MASTER877_CORRECTED_SHA256=$actual"
+          if ($actual -ne $expected) { throw "MASTER877_CORRECTED_HASH_MISMATCH" }
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path -LiteralPath $target).Path,
+            [ref]$tokens,
+            [ref]$errors
+          )
+          Write-Output ("MASTER877_PARSER_ERROR_COUNT=" + @($errors).Count)
+          if (@($errors).Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            throw "MASTER877_PARSER_FAIL"
+          }
+          Write-Output "MASTER877_PARSER_PASS=true"
+          Write-Output "TARGET_EXECUTED=false"
