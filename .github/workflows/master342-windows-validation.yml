@@ -515,7 +515,9 @@ jobs:
           if($body.IndexOf($exact,[StringComparison]::Ordinal)-lt 0){throw 'APP_PY_EXACT_TARGET_MISSING'}
           foreach($required in @('READ_ONLY=true','SOURCE_MUTATION=0','PROCESS_STOP=0','PROCESS_START=0','APPROVAL_ACTION=0','SCHEDULE_ACTION=0','PUBLISHER_INVOCATION=0','FACEBOOK_WRITE=0','META_CALL=0','DESKTOP_OUTPUT=0','Set-Clipboard')){if($body.IndexOf($required,[StringComparison]::Ordinal)-lt 0){throw "APP_PY_CONTRACT_MISSING $required"}}
           if($body -match '(?i)Invoke-RestMethod|Invoke-WebRequest|Start-Process|Stop-Process|Remove-Item|Move-Item|Rename-Item|Copy-Item|Set-Content|Add-Content|Out-File'){throw 'APP_PY_READ_ONLY_GATE_FAIL'}
-          if($body -match '(?i)\\\\Desktop\\\\|Environment\\]::GetFolderPath\\([^)]*Desktop|\\$env:USERPROFILE\\\\Desktop'){throw 'APP_PY_NO_DESKTOP_OUTPUT_GATE_FAIL'}
+          if($body.IndexOf('DESKTOP_OUTPUT=0',[StringComparison]::Ordinal)-lt 0){throw 'APP_PY_DESKTOP_SAFETY_MARKER_MISSING'}
+          $desktopForms=@('\\Desktop\\','/Desktop/','$env:USERPROFILE\\Desktop','GetFolderPath(')
+          foreach($form in $desktopForms){if($body.IndexOf($form,[StringComparison]::OrdinalIgnoreCase)-ge 0){throw ('APP_PY_NO_DESKTOP_OUTPUT_GATE_FAIL '+$form)}}
           Write-Output 'APP_PY_READ_ONLY_GATE=PASS'
           Write-Output 'APP_PY_NO_DESKTOP_OUTPUT_GATE=PASS'
           Write-Output 'APP_PY_ACQUIRE_PARSEFILE_PASS=true'
