@@ -478,7 +478,7 @@ jobs:
           if(@($errors).Count){$errors|ForEach-Object{Write-Error $_.Message};throw "BATCHD_DIAG_V2_PARSE_FAIL count=$(@($errors).Count)"}
           $body=Get-Content -LiteralPath $target -Raw
           if($body -match '(?im)(^|[^A-Za-z0-9_])\\$pid([^A-Za-z0-9_]|$)'){throw 'BATCHD_DIAG_V2_RESERVED_PID_COLLISION'}
-          if($body -notmatch '\\$packageId'){throw 'BATCHD_DIAG_V2_PACKAGEID_FIX_MISSING'}
+          if($body.IndexOf('$packageId',[StringComparison]::OrdinalIgnoreCase) -lt 0){throw 'BATCHD_DIAG_V2_PACKAGEID_FIX_MISSING'}
           Write-Output 'BATCHD_DIAG_V2_PARSEFILE_PASS=true'
           Write-Output 'BATCHD_DIAG_V2_PARSE_ERRORS=0'
           Write-Output 'BATCHD_DIAG_V2_RESERVED_VARIABLE_GATE=PASS'
