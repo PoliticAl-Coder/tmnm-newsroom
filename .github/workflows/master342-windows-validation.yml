@@ -500,3 +500,38 @@ jobs:
           path: batchd_diag_v2_package/
           if-no-files-found: error
           retention-days: 7
+
+      - name: Batch D one-file app.py acquisition native Windows gate
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $target='engineering/batchd/TMNM_APP_PY_ONE_FILE_ACQUIRE.ps1'
+          $actual=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
+          $tokens=$null;$errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path -LiteralPath $target).Path,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){$errors|ForEach-Object{Write-Error $_.Message};throw "APP_PY_ACQUIRE_PARSE_FAIL count=$(@($errors).Count)"}
+          $body=Get-Content -LiteralPath $target -Raw
+          $exact='C:\Users\USER\AppData\Local\TMNM\OwnerConsole\CanonicalBridgeReview_579a2cf7a4da5591\tmnm_owner_console\app.py'
+          if($body.IndexOf($exact,[StringComparison]::Ordinal)-lt 0){throw 'APP_PY_EXACT_TARGET_MISSING'}
+          foreach($required in @('READ_ONLY=true','SOURCE_MUTATION=0','PROCESS_STOP=0','PROCESS_START=0','APPROVAL_ACTION=0','SCHEDULE_ACTION=0','PUBLISHER_INVOCATION=0','FACEBOOK_WRITE=0','META_CALL=0','DESKTOP_OUTPUT=0','Set-Clipboard')){if($body.IndexOf($required,[StringComparison]::Ordinal)-lt 0){throw "APP_PY_CONTRACT_MISSING $required"}}
+          if($body -match '(?i)Invoke-RestMethod|Invoke-WebRequest|Start-Process|Stop-Process|Remove-Item|Move-Item|Rename-Item|Copy-Item|Set-Content|Add-Content|Out-File|Desktop'){throw 'APP_PY_READ_ONLY_OR_DESKTOP_GATE_FAIL'}
+          Write-Output 'APP_PY_ACQUIRE_PARSEFILE_PASS=true'
+          Write-Output 'APP_PY_ACQUIRE_PARSE_ERRORS=0'
+          Write-Output "APP_PY_ACQUIRE_VALIDATED_PS1_SHA256=$actual"
+          New-Item -ItemType Directory -Force -Path batchd_app_py_acquire_package|Out-Null
+          Copy-Item -LiteralPath $target -Destination batchd_app_py_acquire_package/TMNM_APP_PY_ONE_FILE_ACQUIRE.ps1
+          '@echo off
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0TMNM_APP_PY_ONE_FILE_ACQUIRE.ps1"
+          echo.
+          pause' | Set-Content -LiteralPath batchd_app_py_acquire_package/RUN_ME_READ_ONLY.cmd -Encoding ASCII
+          $inside=(Get-FileHash -LiteralPath batchd_app_py_acquire_package/TMNM_APP_PY_ONE_FILE_ACQUIRE.ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($inside-ne$actual){throw 'APP_PY_ACQUIRE_PACKAGE_BYTE_MISMATCH'}
+          Write-Output "APP_PY_ACQUIRE_PACKAGED_PS1_SHA256=$inside"
+          Write-Output 'APP_PY_ACQUIRE_PS1_BYTE_MATCH=PASS'
+      - name: Upload Batch D one-file app.py acquisition validated package
+        uses: actions/upload-artifact@v4
+        with:
+          name: TMNM_APP_PY_ONE_FILE_ACQUIRE_NATIVE_VALIDATED
+          path: batchd_app_py_acquire_package/
+          if-no-files-found: error
+          retention-days: 7
