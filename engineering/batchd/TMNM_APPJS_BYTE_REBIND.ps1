@@ -16,7 +16,7 @@ $r=[ordered]@{schema='TMNM_APPJS_BYTE_REBIND_V2';mode='READ_ONLY_EXACT_APPJS_BYT
 Write-Host '[3/3] Writing LocalWorker evidence + clipboard...'
 New-Item -ItemType Directory -Force -Path $outDir|Out-Null
 $j=$r|ConvertTo-Json -Depth 4
-([IO.File]::WriteAllText($out,$j,[Text.UTF8Encoding]::new($false)))
+[IO.File]::WriteAllText($out,$j,[Text.UTF8Encoding]::new($false))
 Set-Clipboard -Value $j
 Write-Host $j
 Write-Host ('RESULT_PATH='+$out)
