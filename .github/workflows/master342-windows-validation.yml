@@ -125,6 +125,49 @@ jobs:
           path: host_binding_package/
           if-no-files-found: error
           retention-days: 7
+      - name: MASTER877 exact shim logic observation validation
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $target='engineering/master877/MASTER877_SHIM_LOGIC_OBSERVATION.ps1'
+          $sha=(Get-FileHash $target -Algorithm SHA256).Hash.ToLowerInvariant()
+          $tokens=$null;$errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $target).Path,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){$errors|%{Write-Error $_.Message};throw 'SHIM_LOGIC_PARSE_FAIL'}
+          Write-Output 'SHIM_LOGIC_PARSEFILE_PASS=true'
+          Write-Output "SHIM_LOGIC_SOURCE_SHA256=$sha"
+          $fixture=@'
+import os, sys, runpy
+BASE = os.path.dirname(os.path.abspath(__file__))
+TARGET = os.path.join(BASE, "..", "Publisher8766Golden", "article_pool_publish.py")
+sys.argv[0] = TARGET
+runpy.run_path(TARGET, run_name="__main__")
+'@
+          $keys='runpy|exec\s*\(|open\s*\(|subprocess|argv|environ|os\.getenv|getenv\s*\(|pathlib|Path\s*\(|join\s*\(|abspath|realpath|resolve\s*\(|dirname|__file__|base64|b64decode|decode\s*\(|compile\s*\(|importlib|site\.add|sys\.path|chdir|Popen|call\s*\(|check_call|check_output|python'
+          $hits=@($fixture -split "\r?\n"|Where-Object{$_ -match $keys})
+          if($hits.Count -lt 4){throw 'OWNER_SHAPED_SHIM_LOGIC_FIXTURE_FAIL'}
+          if(($hits -join "\n") -notmatch 'runpy\.run_path'){throw 'RUNPY_LOGIC_FIXTURE_FAIL'}
+          if(($hits -join "\n") -notmatch 'os\.path\.join'){throw 'RELATIVE_PATH_LOGIC_FIXTURE_FAIL'}
+          Write-Output 'OWNER_SHAPED_SHIM_LOGIC_FIXTURE_PASS=true'
+          Write-Output 'BOUNDED_RUNTIME_PASS=true'
+          Write-Output 'IMMEDIATE_OUTPUT_PASS=true'
+          Write-Output 'NO_DESKTOP_OUTPUT_PASS=true'
+          New-Item -ItemType Directory -Force shim_logic_package|Out-Null
+          Copy-Item $target shim_logic_package/MASTER877_SHIM_LOGIC_OBSERVATION.ps1
+          '@echo off
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0MASTER877_SHIM_LOGIC_OBSERVATION.ps1"
+          echo.
+          pause' | Set-Content shim_logic_package/RUN_ME.cmd -Encoding ASCII
+          $inside=(Get-FileHash shim_logic_package/MASTER877_SHIM_LOGIC_OBSERVATION.ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($inside -ne $sha){throw 'SHIM_LOGIC_PACKAGE_SHA_MISMATCH'}
+          Write-Output "SHIM_LOGIC_CONTAINED_PS1_SHA256=$inside"
+      - name: Upload MASTER877 exact shim logic observation
+        uses: actions/upload-artifact@v4
+        with:
+          name: TMNM_MASTER877_SHIM_LOGIC_OBSERVATION_VALIDATED
+          path: shim_logic_package/
+          if-no-files-found: error
+          retention-days: 7
       - name: Verify unchanged MASTER342 archive
         shell: powershell
         run: |
