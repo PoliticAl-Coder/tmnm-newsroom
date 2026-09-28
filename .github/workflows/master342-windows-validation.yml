@@ -61,7 +61,7 @@ jobs:
         run: |
           $ErrorActionPreference='Stop'
           $target='engineering/master877/MASTER877_DETERMINISTIC_PATH_CANDIDATE.ps1'
-          $expected='9c377d086c8ebd941ddcf25e65d1f577dd0ae7bdbb4c363006f5963e53cc946f'
+          $expected='24d3c7023daf332de3cf172d8530cf26ac2bc75ea5ba527c46f864e8976cd5be'
           $actual=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
           if($actual -ne $expected){throw "PACKAGE_SOURCE_HASH_MISMATCH actual=$actual"}
           New-Item -ItemType Directory -Force -Path master877_stage2_package | Out-Null
@@ -77,7 +77,7 @@ jobs:
       - name: Upload validated MASTER877 Stage 2 package
         uses: actions/upload-artifact@v4
         with:
-          name: TMNM_MASTER877_DETERMINISTIC_STAGE4_VALIDATED
+          name: TMNM_MASTER877_DETERMINISTIC_STAGE4_FORENSIC_VALIDATED
           path: master877_stage2_package/
           if-no-files-found: error
           retention-days: 7
