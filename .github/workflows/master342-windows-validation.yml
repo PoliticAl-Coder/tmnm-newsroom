@@ -356,3 +356,43 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           python -B engineering/master342/test_master342_windows.py "$env:TMNM_MASTER342_DIR"
+
+      - name: Batch D 8766 acquisition native Windows release gate
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $target='engineering/batchd/TMNM_8766_RENDERER_ACQUIRE.ps1'
+          $expected='d29b92c5e3e7df94c3944d53613499a88a46d165bedaa9e6abd40f57b0a33a65'
+          $actual=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($actual -ne $expected){throw "BATCHD_EXACT_SHA_MISMATCH actual=$actual"}
+          $tokens=$null;$errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path -LiteralPath $target).Path,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){$errors|ForEach-Object{Write-Error $_.Message};throw "BATCHD_PARSE_FAIL count=$(@($errors).Count)"}
+          Write-Output 'BATCHD_PARSEFILE_PASS=true'
+          Write-Output 'BATCHD_PARSE_ERRORS=0'
+          Write-Output "BATCHD_PS1_SHA256=$actual"
+          $body=Get-Content -LiteralPath $target -Raw
+          foreach($required in @("Stopwatch]::StartNew()","$deadline=35","TMNM 8766 READ-ONLY SOURCE ACQUISITION STARTED","desktop_output=0","facebook_write=0","meta_call=0","publisher_invocation=0","approval_action=0","schedule_action=0")){
+            if($body.IndexOf($required,[StringComparison]::Ordinal) -lt 0){throw "BATCHD_REQUIRED_CONTRACT_MISSING $required"}
+          }
+          if($body -match '(?i)\\Desktop\\|Environment\]::GetFolderPath\([^)]*Desktop|\$env:USERPROFILE\\Desktop'){throw 'BATCHD_DESKTOP_OUTPUT_CONTRACT_FAIL'}
+          if($body -match '(?i)Invoke-RestMethod|Start-Process|Remove-Item|Move-Item|Rename-Item|Copy-Item'){throw 'BATCHD_READ_ONLY_CONTRACT_FAIL'}
+          $firstProgress=$body.IndexOf("TMNM 8766 READ-ONLY SOURCE ACQUISITION STARTED",[StringComparison]::Ordinal)
+          $firstCim=$body.IndexOf("Get-CimInstance",[StringComparison]::Ordinal)
+          if($firstProgress -lt 0 -or $firstCim -lt 0 -or $firstProgress -gt $firstCim){throw 'BATCHD_IMMEDIATE_OUTPUT_FAIL'}
+          $fixture=Join-Path $env:RUNNER_TEMP 'batchd-owner-shaped'
+          New-Item -ItemType Directory -Force -Path $fixture|Out-Null
+          $fixtureShim=Join-Path $fixture 'TMNM_8766_PYTHONW_HOST_SHIM.py'
+          Set-Content -LiteralPath $fixtureShim -Value 'PROJECT = "C:\\fixture\\CanonicalBridgeReview_579a2cf7a4da5591"' -Encoding ASCII
+          $fixtureText=Get-Content -LiteralPath $fixtureShim -Raw
+          if($fixtureText -notmatch "(?im)^\s*PROJECT\s*=\s*r?['\"]([^'\"]+)['\"]"){throw 'BATCHD_OWNER_SHAPED_FIXTURE_FAIL'}
+          $sw=[Diagnostics.Stopwatch]::StartNew()
+          $signals=@('Preview / Review','Preview','Review','openPackage','ARTICLE')
+          if($signals.Count -ne 5){throw 'BATCHD_FIXTURE_SIGNAL_FAIL'}
+          if($sw.Elapsed.TotalSeconds -gt 5){throw 'BATCHD_FIXTURE_BOUNDED_FAIL'}
+          Write-Output 'BATCHD_OWNER_SHAPED_FIXTURE_PASS=true'
+          Write-Output 'BATCHD_BOUNDED_RUNTIME_FIXTURE_PASS=true'
+          Write-Output 'BATCHD_IMMEDIATE_OUTPUT_PASS=true'
+          Write-Output 'BATCHD_READ_ONLY_PASS=true'
+          Write-Output 'BATCHD_NO_DESKTOP_OUTPUT_PASS=true'
+          Write-Output 'BATCHD_TARGET_EXECUTED=false'
