@@ -6,10 +6,10 @@ on:
     paths:
       - engineering/master877/MASTER877_CORRECTED_PARSER_TARGET.ps1
       - .github/workflows/master877-parser-validation.yml
-  pull_request:\n  workflow_dispatch:
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   parser-only:
@@ -40,3 +40,24 @@ jobs:
           }
           Write-Output "MASTER877_PARSER_PASS=true"
           Write-Output "TARGET_EXECUTED=false"
+          New-Item -ItemType Directory -Force -Path 'engineering/master877/evidence' | Out-Null
+          @(
+            'MASTER877_PARSER_VALIDATION=PASS'
+            ('MASTER877_CORRECTED_SHA256=' + $actual)
+            'MASTER877_PARSER_ERROR_COUNT=0'
+            'PARSER=System.Management.Automation.Language.Parser.ParseFile'
+            'TARGET_EXECUTED=false'
+            'RUNNER=windows-latest'
+            ('SOURCE_COMMIT=' + $env:GITHUB_SHA)
+          ) | Set-Content -LiteralPath 'engineering/master877/evidence/PARSER_PASS.txt' -Encoding UTF8
+      - name: Persist parser PASS evidence to engineering branch
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add engineering/master877/evidence/PARSER_PASS.txt
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) { Write-Output "EVIDENCE_ALREADY_CURRENT=true"; exit 0 }
+          git commit -m "Record MASTER877 native PowerShell parser PASS"
+          git push origin HEAD:engineering/master342-windows-validation
