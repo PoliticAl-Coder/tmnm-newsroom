@@ -561,6 +561,10 @@ jobs:
           Write-Output 'REPAIR_SCOPE_GATE=PASS'
           $fixture='engineering/batchd/fixtures/app_py_exact_27ae2246.py'
           if(!(Test-Path -LiteralPath $fixture)){throw 'EXACT_APP_FIXTURE_MISSING'}
+          $fixtureExact=Join-Path $env:RUNNER_TEMP 'app_py_exact_27ae2246.py'
+          python -c "import subprocess,pathlib; pathlib.Path(r'$fixtureExact').write_bytes(subprocess.check_output(['git','show','HEAD:engineering/batchd/fixtures/app_py_exact_27ae2246.py']))"
+          if($LASTEXITCODE-ne0){throw 'EXACT_APP_FIXTURE_BLOB_EXPORT_FAIL'}
+          $fixture=$fixtureExact
           $fixtureSha=(Get-FileHash -LiteralPath $fixture -Algorithm SHA256).Hash.ToLowerInvariant()
           if($fixtureSha-ne'27ae2246fc4cabf87add213e3763d1159bd6078dd7c1f7c6a2cb1e0bc443bc24'){throw 'EXACT_APP_FIXTURE_SHA_FAIL'}
           $src=[IO.File]::ReadAllText($fixture)
