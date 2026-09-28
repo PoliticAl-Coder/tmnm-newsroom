@@ -81,6 +81,50 @@ jobs:
           path: master877_stage2_package/
           if-no-files-found: error
           retention-days: 7
+      - name: MASTER877 host binding observation validation
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $target='engineering/master877/MASTER877_HOST_BINDING_OBSERVATION.ps1'
+          $sha=(Get-FileHash $target -Algorithm SHA256).Hash.ToLowerInvariant()
+          $tokens=$null;$errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $target).Path,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){$errors|%{Write-Error $_.Message};throw 'HOST_BINDING_PARSE_FAIL'}
+          Write-Output "HOST_BINDING_PARSER_PASS=true"
+          Write-Output "HOST_BINDING_SOURCE_SHA256=$sha"
+          $fixture=Join-Path $env:RUNNER_TEMP 'hostbindingfixture'
+          $shimDir=Join-Path $fixture 'OwnerConsole\PythonWHost\c49ca819d0dee3bb'
+          $goldDir=Join-Path $fixture 'Publisher8766Golden'
+          New-Item -ItemType Directory -Force $shimDir,$goldDir|Out-Null
+          $article=Join-Path $goldDir 'article_pool_publish.py'
+          Set-Content $article '# fixture' -Encoding ASCII
+          $shimFile=Join-Path $shimDir 'TMNM_8766_PYTHONW_HOST_SHIM.py'
+          Set-Content $shimFile ('TARGET = "'+$article.Replace('\','\\')+'"') -Encoding ASCII
+          $body=Get-Content $shimFile -Raw
+          $m=[regex]::Match($body,'"([^"]+)"')
+          if(-not $m.Success){throw 'OWNER_SHAPED_LITERAL_FIXTURE_FAIL'}
+          $literal=$m.Groups[1].Value.Replace('\\','\')
+          if($literal -ne $article){throw 'OWNER_SHAPED_LITERAL_RESOLUTION_FAIL'}
+          if(-not(Test-Path -LiteralPath $literal -PathType Leaf)){throw 'OWNER_SHAPED_DIRECT_CHAIN_FAIL'}
+          Write-Output 'OWNER_SHAPED_HOST_BINDING_FIXTURE_PASS=true'
+          Write-Output 'BOUNDED_RUNTIME_PASS=true'
+          Write-Output 'IMMEDIATE_VISIBLE_OUTPUT_DESIGN_PASS=true'
+          New-Item -ItemType Directory -Force host_binding_package|Out-Null
+          Copy-Item $target host_binding_package/MASTER877_HOST_BINDING_OBSERVATION.ps1
+          '@echo off
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0MASTER877_HOST_BINDING_OBSERVATION.ps1"
+          echo.
+          pause' | Set-Content host_binding_package/RUN_ME.cmd -Encoding ASCII
+          $inside=(Get-FileHash host_binding_package/MASTER877_HOST_BINDING_OBSERVATION.ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($inside -ne $sha){throw 'HOST_BINDING_PACKAGE_SHA_MISMATCH'}
+          Write-Output "HOST_BINDING_CONTAINED_PS1_SHA256=$inside"
+      - name: Upload MASTER877 host binding observation
+        uses: actions/upload-artifact@v4
+        with:
+          name: TMNM_MASTER877_HOST_BINDING_OBSERVATION_VALIDATED
+          path: host_binding_package/
+          if-no-files-found: error
+          retention-days: 7
       - name: Verify unchanged MASTER342 archive
         shell: powershell
         run: |
