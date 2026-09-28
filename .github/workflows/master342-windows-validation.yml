@@ -61,23 +61,23 @@ jobs:
         run: |
           $ErrorActionPreference='Stop'
           $target='engineering/master877/MASTER877_DETERMINISTIC_PATH_CANDIDATE.ps1'
-          $expected='c3c23e3a6eba548dae6f556d96e2f8ffc27fa34ab64c14d65ffb8d01ab0b56fc'
+          $expected='9c377d086c8ebd941ddcf25e65d1f577dd0ae7bdbb4c363006f5963e53cc946f'
           $actual=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
           if($actual -ne $expected){throw "PACKAGE_SOURCE_HASH_MISMATCH actual=$actual"}
           New-Item -ItemType Directory -Force -Path master877_stage2_package | Out-Null
-          Copy-Item -LiteralPath $target -Destination master877_stage2_package/MASTER877_DETERMINISTIC_STAGE2.ps1
+          Copy-Item -LiteralPath $target -Destination master877_stage2_package/MASTER877_DETERMINISTIC_STAGE4.ps1
           '@echo off
-          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0MASTER877_DETERMINISTIC_STAGE2.ps1"
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0MASTER877_DETERMINISTIC_STAGE4.ps1"
           echo.
           echo READ-ONLY ONLY. No publisher module is imported or executed.
           pause' | Set-Content -LiteralPath master877_stage2_package/RUN_ME.cmd -Encoding ASCII
-          $inside=(Get-FileHash master877_stage2_package/MASTER877_DETERMINISTIC_STAGE2.ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
+          $inside=(Get-FileHash master877_stage2_package/MASTER877_DETERMINISTIC_STAGE4.ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
           if($inside -ne $expected){throw "PACKAGE_CONTAINED_HASH_MISMATCH actual=$inside"}
           Write-Output "PACKAGE_CONTAINED_PS1_SHA256=$inside"
       - name: Upload validated MASTER877 Stage 2 package
         uses: actions/upload-artifact@v4
         with:
-          name: TMNM_MASTER877_DETERMINISTIC_STAGE2_VALIDATED
+          name: TMNM_MASTER877_DETERMINISTIC_STAGE4_VALIDATED
           path: master877_stage2_package/
           if-no-files-found: error
           retention-days: 7
