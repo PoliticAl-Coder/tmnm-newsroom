@@ -18,13 +18,48 @@ try {
   $proc=@();$pj=Start-Job -ScriptBlock {Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {$_.CommandLine -and $_.CommandLine -match '(?i)8766|TMNM_8766_PYTHONW_HOST_SHIM'} | ForEach-Object {[pscustomobject]@{pid=$_.ProcessId;name=$_.Name;executable=$_.ExecutablePath;command_line=$_.CommandLine}}}
   if(Wait-Job $pj -Timeout 4){$proc=@(Receive-Job $pj)}else{$R.process_discovery_timeout=$true};Remove-Job $pj -Force -ErrorAction SilentlyContinue;$R.process_context=$proc
   $refs=New-Object System.Collections.Generic.List[object];$literalPaths=New-Object System.Collections.Generic.List[string]
+  function Add-SafeLiteralPath([string]$Value,[System.Collections.Generic.List[string]]$Target){
+    if([string]::IsNullOrWhiteSpace($Value)){return}
+    $q=$Value.Trim().Trim('"').Trim("'")
+    if($q -notmatch '^[A-Za-z]:\\'){return}
+    if($q.IndexOfAny([IO.Path]::GetInvalidPathChars()) -ge 0){return}
+    if($q -notmatch '(?i)\.(py|json|ini|cfg|conf|yaml|yml)$'){return}
+    if(-not $Target.Contains($q)){[void]$Target.Add($q)}
+  }
   foreach($p in $proc){
-    $texts=@([string]$p.command_line,[string]$p.executable)
-    foreach($t in $texts){if($t){foreach($m in [regex]::Matches($t,'(?i)(?:"([A-Z]:\\[^"\r\n]+?\.(?:py|json|ini|cfg|conf|yaml|yml))"|([A-Z]:\\[^\r\n]*?\.(?:py|json|ini|cfg|conf|yaml|yml)))')){$q=if($m.Groups[1].Success){$m.Groups[1].Value}else{$m.Groups[2].Value.Trim()};if($q -and -not $literalPaths.Contains($q)){[void]$literalPaths.Add($q)}}}}
+    if($p.executable){Add-SafeLiteralPath ([string]$p.executable) $literalPaths}
+    $cmd=[string]$p.command_line
+    if($cmd){
+      foreach($m in [regex]::Matches($cmd,'"([^"]+)"|([^\s"]+)')){
+        $token=if($m.Groups[1].Success){$m.Groups[1].Value}else{$m.Groups[2].Value}
+        Add-SafeLiteralPath $token $literalPaths
+      }
+    }
   }
   $shimPaths=@($literalPaths|Where-Object{$_ -match '(?i)TMNM_8766_PYTHONW_HOST_SHIM\.py$'})
-  foreach($shim in $shimPaths){if($sw.Elapsed.TotalSeconds -ge $deadlineSeconds){break};if(Test-Path -LiteralPath $shim -PathType Leaf){[void]$refs.Add([ordered]@{source='PROCESS_SHIM';location=$shim;text=$shim});try{$body=Get-Content -LiteralPath $shim -Raw -ErrorAction Stop;foreach($m in [regex]::Matches($body,'(?i)([A-Z]:\\[^"''\r\n]+?\.(?:py|json|ini|cfg|conf|yaml|yml))')){$q=$m.Groups[1].Value.Trim();if($q -and -not $literalPaths.Contains($q)){[void]$literalPaths.Add($q)}}}catch{[void]$refs.Add([ordered]@{source='SHIM_READ_ERROR';location=$shim;text=$_.Exception.Message})}}}
-  foreach($q in @($literalPaths)){if($all.Count -ge $candidateLimit -or $sw.Elapsed.TotalSeconds -ge $deadlineSeconds){break};Add-Candidate $all $seen $q 'LITERAL_PROVENANCE';$d=Split-Path -Parent $q;if($d -and $d -match '(?i)TMNM'){foreach($rel in @('article_pool_publish.py','tmnm_fb_publisher\core.py','tmnm_fb_publisher\adapter.py','tmnm_fb_publisher\__init__.py')){Add-Candidate $all $seen (Join-Path $d $rel) 'IMMEDIATE_RELATIVE'}}}
+  foreach($shim in $shimPaths){
+    if($sw.Elapsed.TotalSeconds -ge $deadlineSeconds){break}
+    if(Test-Path -LiteralPath $shim -PathType Leaf){
+      [void]$refs.Add([ordered]@{source='PROCESS_SHIM';location=$shim;text=$shim})
+      try{
+        $body=Get-Content -LiteralPath $shim -Raw -ErrorAction Stop
+        foreach($m in [regex]::Matches($body,'"([^"]+)"|''([^'']+)''')){
+          $token=if($m.Groups[1].Success){$m.Groups[1].Value}else{$m.Groups[2].Value}
+          Add-SafeLiteralPath $token $literalPaths
+        }
+      }catch{[void]$refs.Add([ordered]@{source='SHIM_READ_ERROR';location=$shim;text=$_.Exception.Message})}
+    }
+  }
+  foreach($q in @($literalPaths)){
+    if($all.Count -ge $candidateLimit -or $sw.Elapsed.TotalSeconds -ge $deadlineSeconds){break}
+    Add-Candidate $all $seen $q 'LITERAL_PROVENANCE'
+    $d=Split-Path -Parent $q
+    if($d -and $d -match '(?i)TMNM'){
+      foreach($rel in @('article_pool_publish.py','tmnm_fb_publisher\core.py','tmnm_fb_publisher\adapter.py','tmnm_fb_publisher\__init__.py')){
+        Add-Candidate $all $seen (Join-Path $d $rel) 'IMMEDIATE_RELATIVE'
+      }
+    }
+  }
   $R.literal_provenance_paths=@($literalPaths);$R.candidate_count=$all.Count;$R.candidate_limit=$candidateLimit
 
   Write-Host 'Stage 3/4: hashing exact candidates...'
