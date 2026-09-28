@@ -13,13 +13,13 @@ try{
  if($p.Count -lt 1){throw 'NO_8766_PROCESS_CANDIDATE'}
  $R.process_candidates=@($p|ForEach-Object{[ordered]@{pid=$_.ProcessId;name=$_.Name;executable=$_.ExecutablePath;command_line=$_.CommandLine}})
  $root=$null;$shim=$null
- foreach($x in $p){if($x.CommandLine -match '([A-Z]:\\[^"]*TMNM_8766_PYTHONW_HOST_SHIM\.py)'){$shim=$matches[1];break}}
+ foreach($x in $p){if($x.CommandLine -match '([A-Z]:\\[^\"]*TMNM_8766_PYTHONW_HOST_SHIM\.py)'){$shim=$matches[1];break}}
  if($shim -and (Test-Path -LiteralPath $shim)){
    $R.host_shim_path=$shim;$R.host_shim_sha256=(Get-FileHash -LiteralPath $shim -Algorithm SHA256).Hash.ToLowerInvariant()
    $st=Get-Content -LiteralPath $shim -Raw
    if($st -match "(?im)^\s*PROJECT\s*=\s*r?['\"]([^'\"]+)['\"]"){$root=$matches[1]}
  }
- if(-not $root){foreach($x in $p){if($x.CommandLine -match '([A-Z]:\\[^"]*CanonicalBridgeReview_[^\\\"\s]+)'){$root=$matches[1];break}}}
+ if(-not $root){foreach($x in $p){if($x.CommandLine -match '([A-Z]:\\[^\"]*CanonicalBridgeReview_[^\\\"\s]+)'){$root=$matches[1];break}}}
  if(-not $root -or -not (Test-Path -LiteralPath $root)){throw 'EXACT_SOURCE_ROOT_NOT_RESOLVED'}
  $R.source_root=$root
  if($sw.Elapsed.TotalSeconds -gt $deadline){throw 'BOUNDED_RUNTIME_EXCEEDED'}
@@ -40,6 +40,7 @@ try{
    }
  }
  if($hits.Count -lt 1){
+   # directly associated fallback: inspect owner page itself only
    $sn=Snip $html 'Preview / Review';if(-not $sn){$sn=Snip $html 'Review'}
    if($sn){[void]$hits.Add([ordered]@{url=$base+'/';served_sha256=Sha $htmlB;length=$htmlB.Length;signals=@('Review');relevant_source_block=$sn})}
  }
