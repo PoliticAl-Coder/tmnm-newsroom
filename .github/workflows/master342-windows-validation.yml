@@ -51,6 +51,11 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           powershell -NoProfile -ExecutionPolicy Bypass -File engineering/master877/test_master877_bounded_windows.ps1
+      - name: MASTER877 deterministic successor native validation
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          powershell -NoProfile -ExecutionPolicy Bypass -File engineering/master877/test_master877_deterministic_windows.ps1
       - name: Verify unchanged MASTER342 archive
         shell: powershell
         run: |
