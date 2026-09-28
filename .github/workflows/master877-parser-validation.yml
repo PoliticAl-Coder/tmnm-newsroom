@@ -6,7 +6,7 @@ on:
     paths:
       - engineering/master877/MASTER877_CORRECTED_PARSER_TARGET.ps1
       - .github/workflows/master877-parser-validation.yml
-  workflow_dispatch:
+  pull_request:\n  workflow_dispatch:
 
 permissions:
   contents: read
