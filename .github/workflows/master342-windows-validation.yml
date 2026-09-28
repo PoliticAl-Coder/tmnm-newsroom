@@ -436,3 +436,33 @@ jobs:
           Write-Output 'REBIND_READ_ONLY_PASS=true'
           Write-Output 'REBIND_NO_DESKTOP_OUTPUT_PASS=true'
           Write-Output 'REBIND_TARGET_LIVE_EXECUTED=false'
+
+      - name: Batch D V3 exact-byte native Windows parser gate
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $target='engineering/batchd/TMNM_8766_RELOAD_RUNTIME_PROOF_V3.ps1'
+          $actual=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
+          $tokens=$null;$errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path -LiteralPath $target).Path,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){$errors|ForEach-Object{Write-Error $_.Message};throw "BATCHD_V3_PARSE_FAIL count=$(@($errors).Count)"}
+          Write-Output 'BATCHD_V3_PARSEFILE_PASS=true'
+          Write-Output 'BATCHD_V3_PARSE_ERRORS=0'
+          Write-Output "BATCHD_V3_VALIDATED_PS1_SHA256=$actual"
+          New-Item -ItemType Directory -Force -Path batchd_v3_package|Out-Null
+          Copy-Item -LiteralPath $target -Destination batchd_v3_package/TMNM_8766_RELOAD_RUNTIME_PROOF_V3.ps1
+          '@echo off
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0TMNM_8766_RELOAD_RUNTIME_PROOF_V3.ps1"
+          echo.
+          pause' | Set-Content -LiteralPath batchd_v3_package/RUN_ME_RELOAD_AND_PROVE_V3.cmd -Encoding ASCII
+          $inside=(Get-FileHash -LiteralPath batchd_v3_package/TMNM_8766_RELOAD_RUNTIME_PROOF_V3.ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($inside-ne$actual){throw 'BATCHD_V3_PACKAGE_BYTE_MISMATCH'}
+          Write-Output "BATCHD_V3_ZIPPED_SOURCE_PS1_SHA256=$inside"
+          Write-Output 'BATCHD_V3_PS1_BYTE_MATCH=true'
+      - name: Upload Batch D V3 exact validated package
+        uses: actions/upload-artifact@v4
+        with:
+          name: TMNM_8766_RELOAD_RUNTIME_PROOF_V3_NATIVE_VALIDATED
+          path: batchd_v3_package/
+          if-no-files-found: error
+          retention-days: 7
