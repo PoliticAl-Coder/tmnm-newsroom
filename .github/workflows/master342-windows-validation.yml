@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 jobs:
   native-windows:
@@ -17,6 +18,34 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: MASTER877 native parser-only gate
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $target = 'engineering/master877/MASTER877_CORRECTED_PARSER_TARGET.ps1'
+          $expected = '21bee519ca6ab8e2d11a95aea79c579f11b26a35e8ebccf75749b7f51d07ea8e'
+          $actual = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "MASTER877_CORRECTED_HASH_MISMATCH actual=$actual" }
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path -LiteralPath $target).Path,[ref]$tokens,[ref]$errors)
+          if (@($errors).Count -ne 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            throw "MASTER877_PARSER_FAIL count=$(@($errors).Count)"
+          }
+          Write-Output "MASTER877_PARSER_PASS=true"
+          Write-Output "MASTER877_PARSER_ERROR_COUNT=0"
+          Write-Output "MASTER877_TESTED_PS1_SHA256=$actual"
+          Write-Output "TARGET_EXECUTED=false"
+          $body = @{
+            state='success'
+            target_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+            description='ParseFile zero errors; exact SHA 21bee519...; target not executed'
+            context='tmnm/master877-parser'
+          } | ConvertTo-Json -Compress
+          Invoke-RestMethod -Method Post -Headers @{Authorization="Bearer $env:GH_TOKEN";Accept='application/vnd.github+json'} -ContentType 'application/json' -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/statuses/$env:GITHUB_SHA" -Body $body | Out-Null
       - name: Verify unchanged MASTER342 archive
         shell: powershell
         run: |
