@@ -1,8 +1,15 @@
 $ErrorActionPreference='Stop'
 $target='engineering/master877/MASTER877_DETERMINISTIC_PATH_CANDIDATE.ps1'
-$expected='faf7277c73f18d643f886df7668be2b3c4e0801d5d5d5283f9058e6869a94373'
+$expected='LOCK_PENDING'
 $actual=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant();if($actual -ne $expected){throw "DETERMINISTIC_HASH_MISMATCH actual=$actual"}
 $tokens=$null;$errors=$null;[void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $target).Path,[ref]$tokens,[ref]$errors);if(@($errors).Count){$errors|%{Write-Error ("line={0} col={1} {2}" -f $_.Extent.StartLineNumber,$_.Extent.StartColumnNumber,$_.Message)};throw "DETERMINISTIC_PARSER_FAIL count=$(@($errors).Count)"}
+# Owner-shaped Stage-2 tokenizer fixture: raw command line must never reach filesystem APIs.
+$ownerCmd='"pythonw.exe" "C:\Users\USER\AppData\Local\TMNM\OwnerConsole\PythonWHost\c49ca819d0dee3bb\TMNM_8766_PYTHONW_HOST_SHIM.py"'
+$tokensFound=@()
+foreach($m in [regex]::Matches($ownerCmd,'"([^"]+)"|([^\s"]+)')){$v=if($m.Groups[1].Success){$m.Groups[1].Value}else{$m.Groups[2].Value};if($v -match '^[A-Za-z]:\\' -and $v.IndexOfAny([IO.Path]::GetInvalidPathChars()) -lt 0){$tokensFound+=$v}}
+$expectedShim='C:\Users\USER\AppData\Local\TMNM\OwnerConsole\PythonWHost\c49ca819d0dee3bb\TMNM_8766_PYTHONW_HOST_SHIM.py'
+if($tokensFound -notcontains $expectedShim){throw 'OWNER_SHAPED_QUOTED_COMMANDLINE_FIXTURE_FAIL'}
+Write-Output 'OWNER_SHAPED_QUOTED_COMMANDLINE_FIXTURE_PASS=true'
 Write-Output 'DETERMINISTIC_PARSER_PASS=true';Write-Output "DETERMINISTIC_TESTED_PS1_SHA256=$actual";Write-Output "POWERSHELL_VERSION=$($PSVersionTable.PSVersion)"
 $fake=Join-Path $env:RUNNER_TEMP 'deterministic owner';$env:LOCALAPPDATA=$fake;$root=Join-Path $fake 'TMNM\Publisher8766Golden';New-Item -ItemType Directory -Force -Path (Join-Path $root 'tmnm_fb_publisher')|Out-Null
 Set-Content -LiteralPath (Join-Path $root 'article_pool_publish.py') -Value 'fixture';Set-Content -LiteralPath (Join-Path $root 'tmnm_fb_publisher\core.py') -Value 'fixture';Set-Content -LiteralPath (Join-Path $root 'tmnm_fb_publisher\adapter.py') -Value 'fixture';Set-Content -LiteralPath (Join-Path $root 'tmnm_fb_publisher\__init__.py') -Value 'fixture'
