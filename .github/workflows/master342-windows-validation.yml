@@ -1,4 +1,5 @@
 name: MASTER342 native Windows engineering validation
+# publish-reference validation trigger 72af10
 on:
   push:
     branches:
