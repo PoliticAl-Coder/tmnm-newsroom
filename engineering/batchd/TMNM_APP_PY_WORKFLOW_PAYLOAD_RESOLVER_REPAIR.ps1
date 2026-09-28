@@ -9,8 +9,8 @@ function Get-Sha256([string]$Path){
 if(!(Test-Path -LiteralPath $target)){throw 'TARGET_NOT_FOUND'}
 if((Get-Sha256 $target)-ne$pre){throw 'PRE_SHA_MISMATCH'}
 $text=[IO.File]::ReadAllText($target)
-$old="p=CACHE.get(pid)`n            if not p:return self.sendj({'error':'PACKAGE_NOT_IN_CURRENT_VIEW'},404)"
-$new="p=resolve_canonical_package(pid, allow_cache=True)`n            if not p:return self.sendj({'error':'PACKAGE_NOT_IN_CURRENT_VIEW'},404)"
+$old="if u.path=='/api/workflow/payload':`n            pid=str(body.get('package_id') or '')`n            p=CACHE.get(pid)`n            if not p:return self.sendj({'error':'PACKAGE_NOT_IN_CURRENT_VIEW'},404)"
+$new="if u.path=='/api/workflow/payload':`n            pid=str(body.get('package_id') or '')`n            p=resolve_canonical_package(pid,allow_cache=True)`n            if not p:return self.sendj({'error':'PACKAGE_NOT_IN_CURRENT_VIEW'},404)"
 $count=([regex]::Matches($text,[regex]::Escape($old))).Count
 if($count-ne1){throw "EXACT_ROUTE_MATCH_COUNT=$count"}
 $updated=$text.Replace($old,$new)
