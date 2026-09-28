@@ -3,7 +3,9 @@ $target='C:\Users\USER\AppData\Local\TMNM\OwnerConsole\CanonicalBridgeReview_579
 Write-Host 'TMNM APP.PY ONE-FILE READ-ONLY ACQUISITION STARTED'
 if(-not(Test-Path -LiteralPath $target -PathType Leaf)){throw 'EXACT_APP_PY_NOT_FOUND'}
 $bytes=[IO.File]::ReadAllBytes($target)
-$sha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
+$shaAlg=[Security.Cryptography.SHA256]::Create()
+try{$shaBytes=$shaAlg.ComputeHash($bytes)}finally{$shaAlg.Dispose()}
+$sha=([BitConverter]::ToString($shaBytes)).Replace('-','').ToLowerInvariant()
 $text=[Text.Encoding]::UTF8.GetString($bytes)
 $lines=$text -split "\r?\n"
 $wanted=New-Object 'System.Collections.Generic.SortedSet[int]'
