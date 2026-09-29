@@ -75,3 +75,31 @@ jobs:
           }
           Write-Output 'EMPTY_MISSING_OUTPUT_TESTS=PASS'
           Write-Output 'FAILURE_PATHS_FAIL_CLOSED=PASS'
+
+      - name: Gate E package exact validated source
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $src=(Resolve-Path 'engineering/batchd11/ACQUIRE_1_1_SOURCE.ps1').Path
+          $stage=Join-Path $env:RUNNER_TEMP 'gate_e_final'
+          $expand=Join-Path $env:RUNNER_TEMP 'gate_e_expand'
+          $zip=Join-Path $env:RUNNER_TEMP 'TMNM_1_1_EXACT_SOURCE_ACQUISITION_OWNER_ROUTE_FINAL.zip'
+          New-Item -ItemType Directory -Force $stage|Out-Null
+          Copy-Item -LiteralPath $src -Destination (Join-Path $stage 'ACQUIRE_1_1_SOURCE.ps1')
+          Compress-Archive -LiteralPath (Join-Path $stage 'ACQUIRE_1_1_SOURCE.ps1') -DestinationPath $zip
+          $final=(Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLowerInvariant()
+          Expand-Archive -LiteralPath $zip -DestinationPath $expand
+          $a=(Get-FileHash -Algorithm SHA256 -LiteralPath $src).Hash
+          $b=(Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $expand 'ACQUIRE_1_1_SOURCE.ps1')).Hash
+          if($a -ne $b){throw 'ZIP_CONTENT_MATCH_FAIL'}
+          Write-Output 'SOURCE_UNCHANGED=PASS'
+          Write-Output 'ZIP_CONTENT_MATCH=PASS'
+          Write-Output ('FINAL_ZIP_SHA256='+$final)
+          "FINAL_ZIP_SHA256=$final" | Out-File -FilePath (Join-Path $env:RUNNER_TEMP 'gate_e_sha.txt') -Encoding ascii
+      - name: Upload Gate E final ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: TMNM-1-1-GATE-E-FINAL
+          path: ${{ runner.temp }}/TMNM_1_1_EXACT_SOURCE_ACQUISITION_OWNER_ROUTE_FINAL.zip
+          if-no-files-found: error
+          compression-level: 0
