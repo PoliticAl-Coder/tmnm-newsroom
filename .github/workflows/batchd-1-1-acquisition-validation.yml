@@ -1,0 +1,46 @@
+name: Batch D 1.1 acquisition native Windows validation
+on:
+  push:
+    branches: [engineering/master342-windows-validation]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate exact acquisition package
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $b64='engineering/batchd/acquisition_1_1_owner_route.zip.b64'
+          $zip=Join-Path $env:RUNNER_TEMP 'acq.zip'
+          [IO.File]::WriteAllBytes($zip,[Convert]::FromBase64String((Get-Content $b64 -Raw).Trim()))
+          $sha=(Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($sha -ne 'dd57b4bf02b842d3edc3411117bfda35f83e678d1bffa31215f688b999572e0b'){throw "ZIP_HASH_MISMATCH $sha"}
+          $x=Join-Path $env:RUNNER_TEMP 'acq'; Expand-Archive $zip $x
+          $ps1=Join-Path $x 'ACQUIRE_1_1_SOURCE.ps1'
+          $tokens=$null;$errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($ps1,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){throw 'PARSER_FAIL'}
+          $src=Get-Content $ps1 -Raw
+          if($src -match 'Desktop'){throw 'DESKTOP_OUTPUT_FOUND'}
+          foreach($bad in @('Stop-Process','Start-Process','/api/workflow/approve','Invoke-RestMethod','Invoke-WebRequest')){
+            if($src -match [regex]::Escape($bad)){throw "WRITE_OR_RUNTIME_ACTION_FOUND $bad"}
+          }
+          foreach($need in @('tmnm_owner_console\app.py','tmnm_owner_console\owner_workflow.py','tmnm_owner_console\static','selected_publish_utc','WRITE_DISABLED_MASTER_HOLD','SCHEDULED','NOT_QUEUED')){
+            if($src -notmatch [regex]::Escape($need)){throw "ONE_PASS_REQUIREMENT_MISSING $need"}
+          }
+          Write-Output 'NATIVE_WINDOWS=PASS'
+          Write-Output 'READ_ONLY=PASS'
+          Write-Output 'ONE_PASS_ACQUISITION=PASS'
+          Write-Output 'NO_DESKTOP_OUTPUT=PASS'
+          Write-Output "ZIP_SHA256=$sha"
+      - name: Upload exact validated ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: TMNM_1_1_EXACT_SOURCE_ACQUISITION_NATIVE_VALIDATED
+          path: ${{ runner.temp }}\acq.zip
+          if-no-files-found: error
+          retention-days: 7
