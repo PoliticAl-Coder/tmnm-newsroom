@@ -35,7 +35,8 @@ try{
   Add ('READINESS_INPUT_ARTICLE_DOC_ID_PRESENT='+(Present $p.article_doc_id))
   Add ('READINESS_INPUT_IMAGE_DRIVE_ID_PRESENT='+(Present $(if($img){$img.source_drive_id}else{''})))
   Add ('READINESS_INPUT_IMAGE_SHA256_PRESENT='+(Present $(if($img){$img.source_sha256}else{''})))
-  Add ('READINESS_INPUT_OK='+(if($p.PSObject.Properties.Name -contains 'ok'){([bool]$p.ok).ToString().ToLowerInvariant()}else{'NOT_PRESENT'}))
+  $okValue=if($p.PSObject.Properties.Name -contains 'ok'){([bool]$p.ok).ToString().ToLowerInvariant()}else{'NOT_PRESENT'}
+  Add ('READINESS_INPUT_OK='+$okValue)
   Add ('READINESS_INPUT_HYDRATION_ERROR='+(Val $p 'hydration_error'))
   Add 'SOURCE_CHANGE=0';Add 'RESTART=0';Add 'APPROVAL_ACTION=0';Add 'SCHEDULE_ACTION=0';Add 'PUBLISHER_INVOCATION=0';Add 'FACEBOOK_WRITE=0';Add 'META_CALL=0'
   New-Item -ItemType Directory -Path $evidenceDir -Force|Out-Null
