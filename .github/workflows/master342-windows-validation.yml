@@ -651,21 +651,46 @@ jobs:
           [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $p),[ref]$tokens,[ref]$errors)
           if($errors.Count-ne0){$errors|%{Write-Output $_.Message};throw 'PAYLOAD_409_CAPTURE_PARSE_FAIL'}
           $s=[IO.File]::ReadAllText((Resolve-Path $p))
-          foreach($x in @('TMNM-20260927-ASHA-SCHEDULER-LIVE-PROOF-01','/api/workflow/payload','RESPONSE_BODY=','ERROR_REASON=','REVIEW_READY=','WORKFLOW_STATUS=','ARTICLE_TEXT_PRESENT=','Set-Clipboard')){if(!$s.Contains($x)){throw ('CAPTURE_REQUIRED_TOKEN_MISSING='+$x)}}
-          foreach($x in @('Stop-Process','Start-Process','/api/workflow/approve','/api/workflow/schedule','/api/workflow/publish','/api/publish-now','facebook.com','graph.facebook','app.py')){if($s.Contains($x)){throw ('CAPTURE_SCOPE_VIOLATION='+$x)}}
+          $reserved=[regex]::Matches($s,'(?i)\\$(?:\\{)?pid(?:\\})?\\b')
+          Write-Output ('RESERVED_PID_REFERENCE_COUNT='+$reserved.Count)
+          if($reserved.Count-ne0){throw 'RESERVED_PID_REFERENCE_REMAINS'}
+          foreach($x in @('/api/workflow/approve','/api/workflow/schedule','/api/workflow/publish','/api/publish-now','facebook.com','graph.facebook','app.py','Stop-Process','Start-Process')){if($s.Contains($x)){throw ('CAPTURE_SCOPE_VIOLATION='+$x)}}
+          $fixture=@'
+          import json
+          from http.server import BaseHTTPRequestHandler,HTTPServer
+          class H(BaseHTTPRequestHandler):
+              def do_POST(self):
+                  b=json.dumps({"error":"NOT_CURRENTLY_ACTIONABLE","snapshot":{"review_ready":False,"workflow_status":"READY_FOR_REVIEW","destination":"TMNM","package_id":"TMNM-20260927-ASHA-SCHEDULER-LIVE-PROOF-01","title":"T","author":"A","article_text":""}}).encode()
+                  self.send_response(409);self.send_header("Content-Type","application/json");self.send_header("Content-Length",str(len(b)));self.end_headers();self.wfile.write(b)
+              def log_message(self,*a): pass
+          HTTPServer(("127.0.0.1",8766),H).handle_request()
+          '@
+          $mock=Join-Path $env:RUNNER_TEMP 'mock409.py';[IO.File]::WriteAllText($mock,$fixture,(New-Object Text.UTF8Encoding($false)))
+          $py=Start-Process python -ArgumentList ('"'+$mock+'"') -PassThru -WindowStyle Hidden
+          Start-Sleep -Milliseconds 500
+          $outFile=Join-Path $env:RUNNER_TEMP 'capture-out.txt';$errFile=Join-Path $env:RUNNER_TEMP 'capture-err.txt'
+          $proc=Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',(Resolve-Path $p)) -Wait -PassThru -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+          if(!$py.HasExited){$py.Kill()}
+          $runOut=[IO.File]::ReadAllText($outFile);$runErr=[IO.File]::ReadAllText($errFile)
+          Write-Output $runOut
+          if($proc.ExitCode-ne0){Write-Output $runErr;throw ('OWNER_FAILURE_PATH_EXECUTION_FAILED='+$proc.ExitCode)}
+          if(!$runOut.Contains('PAYLOAD_HTTP=409')){throw 'OWNER_FAILURE_PATH_HTTP_409_NOT_REACHED'}
+          if(!$runOut.Contains('PACKAGE_ID_PRESENT=true')){throw 'OWNER_FAILURE_PATH_PID_REPLACEMENT_NOT_EXECUTED'}
+          if($runOut.Contains('Cannot overwrite variable PID')){throw 'RESERVED_PID_RUNTIME_FAILURE'}
+          $sha=(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant()
           New-Item -ItemType Directory -Force -Path batchd_payload_409_capture_package|Out-Null
           Copy-Item -LiteralPath $p -Destination batchd_payload_409_capture_package/TMNM_8766_PAYLOAD_409_CAPTURE.ps1
           '@echo off
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0TMNM_8766_PAYLOAD_409_CAPTURE.ps1"
           echo.
           pause' | Set-Content -LiteralPath batchd_payload_409_capture_package/RUN_ME_PAYLOAD_409_CAPTURE.cmd -Encoding ASCII
-          $h=(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant()
-          $reserved=[regex]::Matches($s,'(?im)\\$pid\\b')
-          if($reserved.Count-ne0){throw ('RESERVED_PID_ASSIGNMENT_OR_REFERENCE='+$reserved.Count)}
-          Write-Output 'PAYLOAD_409_CAPTURE_PARSE=PASS'
-          Write-Output 'PAYLOAD_409_CAPTURE_NO_RESERVED_PID_ASSIGNMENT=PASS'
-          Write-Output 'PAYLOAD_409_CAPTURE_SCOPE=PASS'
-          Write-Output "PAYLOAD_409_CAPTURE_PS1_SHA256=$h"
+          $packSha=(Get-FileHash -LiteralPath batchd_payload_409_capture_package/TMNM_8766_PAYLOAD_409_CAPTURE.ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($sha-ne$packSha){throw 'FINAL_PS1_BYTE_BINDING_FAIL'}
+          Write-Output 'PARSER=PASS'
+          Write-Output 'OWNER_FAILURE_PATH_EXECUTED=PASS'
+          Write-Output 'NO_RESERVED_PID_ASSIGNMENT=PASS'
+          Write-Output 'DIAGNOSTIC_SCOPE=PASS'
+          Write-Output ('FINAL_PS1_SHA256='+$sha)
       - name: Upload payload 409 capture validated package
         uses: actions/upload-artifact@v4
         with:
