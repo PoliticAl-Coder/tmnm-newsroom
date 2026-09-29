@@ -807,10 +807,11 @@ jobs:
           $wrapper=Join-Path $env:RUNNER_TEMP 'wrapper.ps1'
           $wrap='function Get-FileHash { param([string]$LiteralPath,[string]$Algorithm) [pscustomobject]@{Hash="CD09099EC23622A7AD27CBD495EAC3D0CD7C9371330BD04981B97429973B6C9E"} }'+[Environment]::NewLine+". '"+$ps1.Replace("'","''")+"'"
           [IO.File]::WriteAllText($wrapper,$wrap,[Text.UTF8Encoding]::new($false))
-          $out=Join-Path $env:RUNNER_TEMP 'v2-out.txt'
-          'x' | powershell.exe -NoProfile -ExecutionPolicy Bypass -File $wrapper *> $out;$rc=$LASTEXITCODE
+          $out=Join-Path $env:RUNNER_TEMP 'v2-out.txt';$err=Join-Path $env:RUNNER_TEMP 'v2-err.txt'
+          $child=Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$wrapper) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err
+          $rc=$child.ExitCode
           if(!$p65.HasExited){Stop-Process -Id $p65.Id -Force};if(!$p66.HasExited){Stop-Process -Id $p66.Id -Force}
-          $txt=[IO.File]::ReadAllText($out);Write-Output $txt;if($rc-ne0){throw ('V2_EXEC_FAIL rc='+$rc)}
+          $txt=[IO.File]::ReadAllText($out);$etxt=[IO.File]::ReadAllText($err);Write-Output $txt;if($rc-ne0){Write-Output $etxt;throw ('V2_EXEC_FAIL rc='+$rc)}
           foreach($v in @('STATUS=PASS_READINESS_INPUT_REPAIR','GOOGLE_AUTH=PASS','ACCOUNT_GATE=PASS','ARTICLE_READ=PASS','ARTICLE_TEXT_PRESENT=true','CANONICAL_ARTICLE_BODY_LOADED=true','IMAGE_SHA256_PRESENT=true','READINESS_MISSING_FIELDS=','REVIEW_READY=true','APPROVAL_ACTION=0','SCHEDULE_ACTION=0','PUBLISHER_INVOCATION=0','FACEBOOK_WRITE=0')){if(!$txt.Contains($v)){throw ('V2_REQUIRED_OUTPUT_MISSING='+$v)}}
           $mf=Get-Content (Join-Path $env:LOCALAPPDATA 'mock_manifest.json') -Raw|ConvertFrom-Json
           if($mf.image_sha256-ne'ba48a525b567e7769820a396b68e78f440f06b6e1da0e44c9785c9bf2bf58f10'){throw 'V2_MANIFEST_SHA_WRITE_FAIL'}
