@@ -1,4 +1,5 @@
 name: Batch D resolver fallback native Windows validation
+# validation trigger 20260929-2124
 on:
   push:
     branches: [engineering/master342-windows-validation]
