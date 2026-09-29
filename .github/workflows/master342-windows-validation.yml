@@ -759,7 +759,7 @@ jobs:
           $ps1=Join-Path $x 'TMNM_BATCHD_READINESS_INPUT_REPAIR.ps1'
           $psSha=(Microsoft.PowerShell.Utility\Get-FileHash $ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
           if($psSha-ne'7c063eff42b215b835529999d30a04bcfb3dcfd26c2372b5ea7a54dbe92d166d'){throw 'V2_PS1_HASH_MISMATCH'}
-          $env:LOCALAPPDATA=Join-Path $env:RUNNER_TEMP 'LocalAppData'
+          $nativeLocal=$env:LOCALAPPDATA;$env:LOCALAPPDATA=Join-Path $nativeLocal 'TMNMV2Validation'
           $worker=Join-Path $env:LOCALAPPDATA 'TMNM\LocalWorker';$app=Join-Path $worker 'app';$sec=Join-Path $worker 'secrets';$venv=Join-Path $worker '.venv\Scripts'
           $cr=Join-Path $env:LOCALAPPDATA 'TMNM\ControlRoom\control_room';New-Item -ItemType Directory -Force $app,$sec,$venv,$cr|Out-Null
           Set-Content (Join-Path $sec 'google_token.dpapi') 'mock-old-token';Set-Content (Join-Path $sec 'google_client.dpapi') 'mock-client'
