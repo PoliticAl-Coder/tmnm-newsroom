@@ -16,8 +16,14 @@ try{
     $resp=$_.Exception.Response
     if($null-eq$resp){throw}
     $http=[int]$resp.StatusCode
-    $stream=$resp.GetResponseStream();$reader=New-Object IO.StreamReader($stream)
-    try{$raw=$reader.ReadToEnd()}finally{$reader.Dispose();$stream.Dispose()}
+    if($_.ErrorDetails -and -not[string]::IsNullOrWhiteSpace([string]$_.ErrorDetails.Message)){
+      $raw=[string]$_.ErrorDetails.Message
+    }elseif($resp.PSObject.Properties.Name -contains 'Content' -and $null-ne$resp.Content){
+      $raw=[string]$resp.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+    }else{
+      $stream=$resp.GetResponseStream();$reader=New-Object IO.StreamReader($stream)
+      try{$raw=$reader.ReadToEnd()}finally{$reader.Dispose();$stream.Dispose()}
+    }
   }
   Add ('PAYLOAD_HTTP='+$http)
   Add ('RESPONSE_BODY='+$raw)
