@@ -785,7 +785,7 @@ jobs:
           from http.server import BaseHTTPRequestHandler,HTTPServer
           class H(BaseHTTPRequestHandler):
             def do_GET(self):
-              b=json.dumps({"article_text":"BODY"}).encode();self.send_response(200);self.send_header("Content-Length",str(len(b)));self.end_headers();self.wfile.write(b)
+              b=json.dumps({"article_text":"BODY"}).encode();self.send_response(200);self.send_header("Content-Type","application/json");self.send_header("Content-Length",str(len(b)));self.end_headers();self.wfile.write(b)
             def log_message(self,*a):pass
           HTTPServer(("127.0.0.1",8765),H).serve_forever()
           '@
@@ -797,7 +797,7 @@ jobs:
             def do_GET(self):
               if not self.path.startswith("/api/packages/TMNM-20260927-ASHA-SCHEDULER-LIVE-PROOF-01"): self.send_response(404);self.end_headers();return
               x={"canonical_article_body_loaded":True,"article_text":"BODY","image_sha256":"ba48a525b567e7769820a396b68e78f440f06b6e1da0e44c9785c9bf2bf58f10","readiness_missing_fields":[],"review_ready":True}
-              b=json.dumps(x).encode();self.send_response(200);self.send_header("Content-Length",str(len(b)));self.end_headers();self.wfile.write(b)
+              b=json.dumps(x).encode();self.send_response(200);self.send_header("Content-Type","application/json");self.send_header("Content-Length",str(len(b)));self.end_headers();self.wfile.write(b)
             def log_message(self,*a):pass
           HTTPServer(("127.0.0.1",8766),H).serve_forever()
           '@
