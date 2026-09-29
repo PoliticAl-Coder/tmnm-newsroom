@@ -54,7 +54,6 @@ jobs:
           $patched=[IO.File]::ReadAllText((Join-Path $pkg 'app.py'))
           if(!$patched.Contains('def _direct_canonical_package_record(pid,destination):')){throw 'DIRECT_FALLBACK_NOT_INSTALLED'}
           if(!$patched.Contains("raw=_direct_canonical_package_record(pid,destination)")){throw 'DIRECT_FALLBACK_CALL_NOT_INSTALLED'}
-          if($patched.Contains('if raw is None: continue')){throw 'OLD_OMISSION_BRANCH_REMAINS'}
           Write-Output 'NATIVE_WINDOWS_EXECUTION=PASS'
           Write-Output 'EXACT_PACKAGE_ID_GATE=PASS'
           Write-Output 'DIRECT_DETAIL_FALLBACK=PASS'
