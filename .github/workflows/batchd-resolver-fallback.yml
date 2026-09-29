@@ -42,6 +42,7 @@ jobs:
                   except BridgeError: continue
               CACHE.pop(pid,None); return None
           '@
+          $old=(($old -split "`r?`n")|ForEach-Object{if($_.Length-ge10){$_.Substring(10)}else{$_}}) -join [Environment]::NewLine
           [IO.File]::WriteAllText((Join-Path $pkg 'app.py'),$old.TrimStart(),[Text.UTF8Encoding]::new($false))
           $env:TMNM_BATCHD_TEST_ROOT=$root
           $out=& powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$src/DEPLOY_AND_VERIFY.ps1" 2>&1
