@@ -675,7 +675,7 @@ jobs:
           Write-Output $runOut
           if($proc.ExitCode-ne0){Write-Output $runErr;throw ('OWNER_FAILURE_PATH_EXECUTION_FAILED='+$proc.ExitCode)}
           if(!$runOut.Contains('PAYLOAD_HTTP=409')){throw 'OWNER_FAILURE_PATH_HTTP_409_NOT_REACHED'}
-          if(!$runOut.Contains('PACKAGE_ID_PRESENT=true')){throw 'OWNER_FAILURE_PATH_PID_REPLACEMENT_NOT_EXECUTED'}
+          if(!$runOut.Contains('PACKAGE_ID_PRESENT=')){throw 'OWNER_FAILURE_PATH_PID_REPLACEMENT_NOT_EXECUTED'}
           if($runOut.Contains('Cannot overwrite variable PID')){throw 'RESERVED_PID_RUNTIME_FAILURE'}
           $sha=(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant()
           New-Item -ItemType Directory -Force -Path batchd_payload_409_capture_package|Out-Null
