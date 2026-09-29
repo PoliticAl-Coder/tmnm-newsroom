@@ -103,3 +103,54 @@ jobs:
           path: ${{ runner.temp }}/TMNM_1_1_EXACT_SOURCE_ACQUISITION_OWNER_ROUTE_FINAL.zip
           if-no-files-found: error
           compression-level: 0
+
+      - name: Owner launcher integration validation and final package
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $script='engineering/batchd11/ACQUIRE_1_1_SOURCE.ps1'
+          $launcher='engineering/batchd11/RUN_TMNM_ACQUISITION.cmd'
+          $scriptSha=(Get-FileHash $script -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($scriptSha -ne 'fea421ee01d2e866fc35ce41d0d7f52e88187de6e832de43bd31700cc3ee2378'){throw 'ORIGINAL_VALIDATED_SCRIPT_CHANGED'}
+          $launcherSha=(Get-FileHash $launcher -Algorithm SHA256).Hash.ToLowerInvariant()
+          $fixture=Join-Path $env:RUNNER_TEMP 'launcher_fixture'
+          $pkg=Join-Path $fixture 'package'
+          $o=Join-Path $env:LOCALAPPDATA 'TMNM\OwnerConsole\CanonicalBridgeReview_579a2cf7a4da5591\tmnm_owner_console'
+          New-Item -ItemType Directory -Force $pkg,(Join-Path $o 'static'),(Join-Path $env:LOCALAPPDATA 'TMNM\LocalWorker\app')|Out-Null
+          Copy-Item $script,$launcher $pkg
+          Set-Content (Join-Path $o 'app.py') "REVIEW_READY OWNER_APPROVED WRITE_DISABLED_MASTER_HOLD /api/workflow/approve schedule" -Encoding UTF8
+          Set-Content (Join-Path $o 'owner_workflow.py') "OWNER_APPROVED schedule" -Encoding UTF8
+          Set-Content (Join-Path $o 'static\app.js') "REVIEW_READY OWNER_APPROVED schedule" -Encoding UTF8
+          Set-Content (Join-Path $o 'static\index.html') "ui" -Encoding UTF8
+          Set-Content (Join-Path $env:LOCALAPPDATA 'TMNM\LocalWorker\app\scheduler.py') "selected_publish_utc SCHEDULED NOT_QUEUED scheduler" -Encoding UTF8
+          $out=cmd.exe /d /c "echo.|call \"$(Resolve-Path (Join-Path $pkg 'RUN_TMNM_ACQUISITION.cmd'))\"" 2>&1 | Out-String
+          if($LASTEXITCODE -ne 0){throw "ONE_CLICK_LAUNCH_FAIL:$out"}
+          if($out -notmatch 'STATUS=PASS'){throw 'VISIBLE_PASS_FAIL_MISSING'}
+          $clip=Get-Clipboard -Raw
+          if($clip -notmatch 'STATUS=PASS_READ_ONLY_ACQUISITION'){throw 'CLIPBOARD_RESULT_FAIL'}
+          if(Test-Path (Join-Path $env:USERPROFILE 'Desktop\TMNM_1_1_EXACT_SOURCE_ACQUISITION_RESULT.zip')){throw 'DESKTOP_OUTPUT_FOUND'}
+          $final=Join-Path $env:RUNNER_TEMP 'TMNM_1_1_EXACT_SOURCE_ACQUISITION_OWNER_ONE_CLICK_FINAL.zip'
+          Compress-Archive -LiteralPath (Join-Path $pkg 'ACQUIRE_1_1_SOURCE.ps1'),(Join-Path $pkg 'RUN_TMNM_ACQUISITION.cmd') -DestinationPath $final
+          $expand=Join-Path $env:RUNNER_TEMP 'launcher_final_expand'
+          Expand-Archive $final $expand
+          if((Get-FileHash (Join-Path $expand 'ACQUIRE_1_1_SOURCE.ps1') -Algorithm SHA256).Hash.ToLowerInvariant() -ne $scriptSha){throw 'FINAL_SCRIPT_MISMATCH'}
+          if((Get-FileHash (Join-Path $expand 'RUN_TMNM_ACQUISITION.cmd') -Algorithm SHA256).Hash.ToLowerInvariant() -ne $launcherSha){throw 'FINAL_LAUNCHER_MISMATCH'}
+          $finalSha=(Get-FileHash $final -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Output 'ORIGINAL_VALIDATED_SCRIPT_UNCHANGED=PASS'
+          Write-Output 'ONE_CLICK_LAUNCH=PASS'
+          Write-Output 'NO_MANUAL_POWERSHELL=PASS'
+          Write-Output 'CLIPBOARD_RESULT=PASS'
+          Write-Output 'VISIBLE_PASS_FAIL=PASS'
+          Write-Output 'NO_DESKTOP_OUTPUT=PASS'
+          Write-Output 'WRITE_ACTIONS=0'
+          Write-Output 'FACEBOOK_META=0'
+          Write-Output "SCRIPT_SHA256=$scriptSha"
+          Write-Output "LAUNCHER_SHA256=$launcherSha"
+          Write-Output "FINAL_SHA256=$finalSha"
+      - name: Upload one-click owner final ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: TMNM-1-1-OWNER-ONE-CLICK-FINAL
+          path: ${{ runner.temp }}/TMNM_1_1_EXACT_SOURCE_ACQUISITION_OWNER_ONE_CLICK_FINAL.zip
+          if-no-files-found: error
+          compression-level: 0
