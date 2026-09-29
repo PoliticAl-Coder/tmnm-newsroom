@@ -69,7 +69,9 @@ jobs:
             if($case -eq 'NOSCHED'){Set-Content (Join-Path $o 'static\app.js') "REVIEW_READY" -Encoding UTF8}
             if($case -eq 'NOUI'){Set-Content (Join-Path $r 'TMNM\LocalWorker\app\scheduler.py') "selected_publish_utc SCHEDULED" -Encoding UTF8}
             powershell.exe -NoProfile -ExecutionPolicy Bypass -File engineering/batchd11/ACQUIRE_1_1_SOURCE.ps1 -TestRoot $r
-            if($LASTEXITCODE -eq 0){throw "FAIL_CLOSED_FAILED:$case"}
+            $childExit=$LASTEXITCODE
+            if($childExit -eq 0){throw "FAIL_CLOSED_FAILED:$case"}
+            $global:LASTEXITCODE=0
           }
           Write-Output 'EMPTY_MISSING_OUTPUT_TESTS=PASS'
           Write-Output 'FAILURE_PATHS_FAIL_CLOSED=PASS'
