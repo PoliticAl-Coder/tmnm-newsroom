@@ -48,7 +48,12 @@ def resolve_canonical_package(pid, allow_cache=True):
         except BridgeError: continue
     CACHE.pop(pid,None); return None
 """
-if s.count(old)!=1: raise SystemExit("EXACT_RESOLVER_BLOCK_COUNT="+str(s.count(old)))
+start=s.find("def resolve_canonical_package(pid, allow_cache=True):")
+end=s.find("\ndef public(",start)
+if start<0 or end<0: raise SystemExit("EXACT_RESOLVER_BOUNDARY_NOT_FOUND")
+actual=s[start:end+1]
+for gate in ("today=BRIDGE.today(destination); records,conflicts=exact_records_by_package_id(today)","raw=records.get(pid)","if raw is None: continue","CACHE.pop(pid,None); return None"):
+    if gate not in actual: raise SystemExit("RESOLVER_GATE_MISSING:"+gate)
 p.with_suffix(".py.batchd_pre_resolver_fallback.bak").write_text(s,encoding="utf-8")
-p.write_text(s.replace(old,new),encoding="utf-8")
+p.write_text(s[:start]+new+s[end+1:],encoding="utf-8")
 print("PATCH=PASS")
