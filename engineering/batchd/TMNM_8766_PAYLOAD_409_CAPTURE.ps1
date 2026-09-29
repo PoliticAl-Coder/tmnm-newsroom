@@ -36,18 +36,18 @@ try{
     }
     if($null-eq$snap){$snap=$json}
   }
-  $rr='';$ws='';$dest='';$pid=$false;$title=$false;$author=$false;$article=$false
+  $rr='';$ws='';$dest='';$packageIdPresent=$false;$title=$false;$author=$false;$article=$false
   if($null-ne$snap){
     if($snap.PSObject.Properties.Name -contains 'review_ready'){$rr=(BoolText ([bool]$snap.review_ready))}
     if($snap.PSObject.Properties.Name -contains 'workflow_status'){$ws=[string]$snap.workflow_status}
     if($snap.PSObject.Properties.Name -contains 'destination'){$dest=[string]$snap.destination}
-    $pid=-not[string]::IsNullOrWhiteSpace([string]$snap.package_id)
+    $packageIdPresent=-not[string]::IsNullOrWhiteSpace([string]$snap.package_id)
     $title=-not[string]::IsNullOrWhiteSpace([string]$snap.title)
     $author=-not[string]::IsNullOrWhiteSpace([string]$snap.author)
     $article=-not[string]::IsNullOrWhiteSpace([string]$snap.article_text)
   }
   Add ('REVIEW_READY='+$rr);Add ('WORKFLOW_STATUS='+$ws);Add ('DESTINATION='+$dest)
-  Add ('PACKAGE_ID_PRESENT='+(BoolText $pid));Add ('TITLE_PRESENT='+(BoolText $title));Add ('AUTHOR_PRESENT='+(BoolText $author));Add ('ARTICLE_TEXT_PRESENT='+(BoolText $article))
+  Add ('PACKAGE_ID_PRESENT='+(BoolText $packageIdPresent));Add ('TITLE_PRESENT='+(BoolText $title));Add ('AUTHOR_PRESENT='+(BoolText $author));Add ('ARTICLE_TEXT_PRESENT='+(BoolText $article))
   Add 'APPROVAL_ACTION=0';Add 'SCHEDULE_ACTION=0';Add 'PUBLISHER_INVOCATION=0';Add 'FACEBOOK_WRITE=0';Add 'META_CALL=0';Add 'SOURCE_CHANGE=0'
   New-Item -ItemType Directory -Path $evidenceDir -Force|Out-Null
   $out=($lines -join [Environment]::NewLine)+[Environment]::NewLine
