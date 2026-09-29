@@ -1,3 +1,4 @@
+# validation trigger 2026-09-29 22:39 BST
 name: Batch D 1.1 acquisition native Windows validation
 on:
   push:
@@ -26,12 +27,8 @@ jobs:
           if(@($errors).Count){throw 'PARSER_FAIL'}
           $src=Get-Content $ps1 -Raw
           if($src -match 'Desktop'){throw 'DESKTOP_OUTPUT_FOUND'}
-          foreach($bad in @('Stop-Process','Start-Process','/api/workflow/approve','Invoke-RestMethod','Invoke-WebRequest')){
-            if($src -match [regex]::Escape($bad)){throw "WRITE_OR_RUNTIME_ACTION_FOUND $bad"}
-          }
-          foreach($need in @('tmnm_owner_console\app.py','tmnm_owner_console\owner_workflow.py','tmnm_owner_console\static','selected_publish_utc','WRITE_DISABLED_MASTER_HOLD','SCHEDULED','NOT_QUEUED')){
-            if($src -notmatch [regex]::Escape($need)){throw "ONE_PASS_REQUIREMENT_MISSING $need"}
-          }
+          foreach($bad in @('Stop-Process','Start-Process','/api/workflow/approve','Invoke-RestMethod','Invoke-WebRequest')){if($src -match [regex]::Escape($bad)){throw "WRITE_OR_RUNTIME_ACTION_FOUND $bad"}}
+          foreach($need in @('tmnm_owner_console\app.py','tmnm_owner_console\owner_workflow.py','tmnm_owner_console\static','selected_publish_utc','WRITE_DISABLED_MASTER_HOLD','SCHEDULED','NOT_QUEUED')){if($src -notmatch [regex]::Escape($need)){throw "ONE_PASS_REQUIREMENT_MISSING $need"}}
           Write-Output 'NATIVE_WINDOWS=PASS'
           Write-Output 'READ_ONLY=PASS'
           Write-Output 'ONE_PASS_ACQUISITION=PASS'
