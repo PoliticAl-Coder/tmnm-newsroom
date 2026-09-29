@@ -1,0 +1,75 @@
+name: Batch D resolver fallback native Windows validation
+on:
+  push:
+    branches: [engineering/master342-windows-validation]
+    paths:
+      - 'engineering/batchd/resolver_fallback/**'
+      - '.github/workflows/batchd-resolver-fallback.yml'
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Execute exact owner package in isolated Windows fixture
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $src='engineering/batchd/resolver_fallback'
+          $tokens=$null;$errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path "$src/DEPLOY_AND_VERIFY.ps1").Path,[ref]$tokens,[ref]$errors)
+          if(@($errors).Count){throw 'POWERSHELL_PARSE_FAIL'}
+          $root=Join-Path $env:RUNNER_TEMP 'ownerfixture'
+          $pkg=Join-Path $root 'tmnm_owner_console'
+          New-Item -ItemType Directory -Force $pkg|Out-Null
+          $old=@'
+          def resolve_canonical_package(pid, allow_cache=True):
+              if allow_cache:
+                  cached=CACHE.get(pid)
+                  if cached is not None and cached.get('canonical_article_body_loaded'): return cached
+              for destination in ('TMNM','POLITIC_AL'):
+                  try:
+                      today=BRIDGE.today(destination); records,conflicts=exact_records_by_package_id(today)
+                      raw=records.get(pid)
+                      if raw is None: continue
+                      p,_,_=complete_canonical_package(raw,pid,destination,conflicts.get(pid))
+                      if not p.get('ok'):
+                          p=placeholder(pid,destination,'CANONICAL TODAY RECORD INCOMPLETE',p.get('missing_fields') or [])
+                      CACHE[pid]=p; return p
+                  except BridgeError: continue
+              CACHE.pop(pid,None); return None
+          '@
+          [IO.File]::WriteAllText((Join-Path $pkg 'app.py'),$old.TrimStart(),[Text.UTF8Encoding]::new($false))
+          $env:TMNM_BATCHD_TEST_ROOT=$root
+          $out=& powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$src/DEPLOY_AND_VERIFY.ps1" 2>&1
+          $rc=$LASTEXITCODE
+          $txt=($out -join [Environment]::NewLine)
+          Write-Output $txt
+          if($rc-ne0){throw "EXACT_PACKAGE_EXEC_FAIL rc=$rc"}
+          foreach($v in @('STATUS=PASS_LIVE_RESOLVER_FALLBACK','SOURCE_CHANGE=1','RESTART=1','CANARY_HTTP=200','CANARY_RESOLVED=True','CANONICAL_ARTICLE_BODY_LOADED=True','ARTICLE_TEXT_PRESENT=True','IMAGE_SHA256_PRESENT=True','READINESS_MISSING_FIELDS=','REVIEW_READY=True','PREVIEW_REVIEW_READY=True','APPROVAL_ACTION=0','SCHEDULE_ACTION=0','PUBLISHER_INVOCATION=0','FACEBOOK_WRITE=0','META_CALL=0')){if(!$txt.Contains($v)){throw "REQUIRED_OUTPUT_MISSING=$v"}}
+          $patched=[IO.File]::ReadAllText((Join-Path $pkg 'app.py'))
+          if(!$patched.Contains('def _direct_canonical_package_record(pid,destination):')){throw 'DIRECT_FALLBACK_NOT_INSTALLED'}
+          if(!$patched.Contains("raw=_direct_canonical_package_record(pid,destination)")){throw 'DIRECT_FALLBACK_CALL_NOT_INSTALLED'}
+          if($patched.Contains('if raw is None: continue')){throw 'OLD_OMISSION_BRANCH_REMAINS'}
+          Write-Output 'NATIVE_WINDOWS_EXECUTION=PASS'
+          Write-Output 'EXACT_PACKAGE_ID_GATE=PASS'
+          Write-Output 'DIRECT_DETAIL_FALLBACK=PASS'
+          Write-Output 'PREVIEW_REVIEW_VALIDATION=PASS'
+          Write-Output 'NO_APPROVAL_SCHEDULE_PUBLISH=PASS'
+      - name: Package execution-proven owner release
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force release|Out-Null
+          Copy-Item engineering/batchd/resolver_fallback/* release/
+          Compress-Archive -Path release/* -DestinationPath TMNM_BATCHD_RESOLVER_FALLBACK_OWNER_DEPLOY.zip -Force
+          $sha=(Get-FileHash TMNM_BATCHD_RESOLVER_FALLBACK_OWNER_DEPLOY.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Output "RELEASE_ZIP_SHA256=$sha"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TMNM_BATCHD_RESOLVER_FALLBACK_OWNER_DEPLOY_NATIVE_PROVEN
+          path: TMNM_BATCHD_RESOLVER_FALLBACK_OWNER_DEPLOY.zip
+          if-no-files-found: error
+          retention-days: 7
