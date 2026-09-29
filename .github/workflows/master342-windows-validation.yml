@@ -675,7 +675,8 @@ jobs:
           Write-Output $runOut
           if($proc.ExitCode-ne0){Write-Output $runErr;throw ('OWNER_FAILURE_PATH_EXECUTION_FAILED='+$proc.ExitCode)}
           if(!$runOut.Contains('PAYLOAD_HTTP=409')){throw 'OWNER_FAILURE_PATH_HTTP_409_NOT_REACHED'}
-          if(!$runOut.Contains('PACKAGE_ID_PRESENT=')){throw 'OWNER_FAILURE_PATH_PID_REPLACEMENT_NOT_EXECUTED'}
+          if(!$runOut.Contains('RESPONSE_BODY={"error": "NOT_CURRENTLY_ACTIONABLE"')){throw 'RESPONSE_BODY_CAPTURE_FAIL'}
+          if(!$runOut.Contains('ERROR_REASON=NOT_CURRENTLY_ACTIONABLE')){throw 'ERROR_REASON_PARSE_FAIL'}
           if($runOut.Contains('Cannot overwrite variable PID')){throw 'RESERVED_PID_RUNTIME_FAILURE'}
           $sha=(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant()
           New-Item -ItemType Directory -Force -Path batchd_payload_409_capture_package|Out-Null
@@ -687,7 +688,9 @@ jobs:
           $packSha=(Get-FileHash -LiteralPath batchd_payload_409_capture_package/TMNM_8766_PAYLOAD_409_CAPTURE.ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
           if($sha-ne$packSha){throw 'FINAL_PS1_BYTE_BINDING_FAIL'}
           Write-Output 'PARSER=PASS'
-          Write-Output 'OWNER_FAILURE_PATH_EXECUTED=PASS'
+          Write-Output 'HTTP_409_PATH_EXECUTED=PASS'
+          Write-Output 'RESPONSE_BODY_CAPTURE=PASS'
+          Write-Output 'ERROR_REASON_PARSE=PASS'
           Write-Output 'NO_RESERVED_PID_ASSIGNMENT=PASS'
           Write-Output 'DIAGNOSTIC_SCOPE=PASS'
           Write-Output ('FINAL_PS1_SHA256='+$sha)
