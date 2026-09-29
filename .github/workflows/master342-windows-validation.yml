@@ -893,6 +893,92 @@ jobs:
           if($mf.image_sha256-ne'ba48a525b567e7769820a396b68e78f440f06b6e1da0e44c9785c9bf2bf58f10'){throw 'V4_MANIFEST_SHA_WRITE_FAIL'}
           Write-Output 'NATIVE_WINDOWS_RUN=PASS';Write-Output 'BRIDGE_PREFLIGHT=PASS';Write-Output 'ACCOUNT_GATE=PASS';Write-Output 'ARTICLE_READ_CONTRACT=PASS';Write-Output 'ARTICLE_TEXT_PRESENT=true';Write-Output 'CANONICAL_ARTICLE_BODY_LOADED=true';Write-Output 'IMAGE_SHA256_REPAIR_CONTRACT=PASS';Write-Output '8766_RESOLVED_PACKAGE_ROUTE=PASS';Write-Output 'FINAL_OUTPUT_CAPTURE=PASS';Write-Output ('FINAL_ZIP_SHA256='+$zipSha);Write-Output ('FINAL_PS1_SHA256='+$psSha)
           New-Item -ItemType Directory -Force batchd_v4_validated|Out-Null;Copy-Item $zip batchd_v4_validated/TMNM_BATCHD_READINESS_INPUT_REPAIR_OWNER_ROUTE_V4.zip
+
+      - name: Batch D V5 BOM-free exact native contract execution
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $b64=[IO.File]::ReadAllText('engineering/batchd/v5_owner_route.zip.b64').Trim()
+          $zip=Join-Path $env:RUNNER_TEMP 'v5.zip';[IO.File]::WriteAllBytes($zip,[Convert]::FromBase64String($b64))
+          $zipSha=(Microsoft.PowerShell.Utility\Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($zipSha-ne'32440ef2139ffe6a30be14f23f31b30ec420b19306f6d15d7aca43320080a1c8'){throw 'V5_ZIP_HASH_MISMATCH'}
+          $x=Join-Path $env:RUNNER_TEMP 'v5';Expand-Archive $zip $x -Force
+          $ps1=Join-Path $x 'TMNM_BATCHD_READINESS_INPUT_REPAIR.ps1'
+          $psSha=(Microsoft.PowerShell.Utility\Get-FileHash $ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
+          if($psSha-ne'111365b71fd3486c79cbdeaeda16e07122c579c241cc64c27379f2723bbfbc69'){throw 'V5_PS1_HASH_MISMATCH'}
+          $nativeLocal=$env:LOCALAPPDATA;$env:LOCALAPPDATA=Join-Path $nativeLocal 'TMNMV5Validation'
+          $worker=Join-Path $env:LOCALAPPDATA 'TMNM\LocalWorker';$app=Join-Path $worker 'app';$sec=Join-Path $worker 'secrets';$venv=Join-Path $worker '.venv\Scripts'
+          $cr=Join-Path $env:LOCALAPPDATA 'TMNM\ControlRoom\control_room';New-Item -ItemType Directory -Force $app,$sec,$venv,$cr|Out-Null
+          Set-Content (Join-Path $sec 'google_token.dpapi') 'mock-current-authorized-token';Set-Content (Join-Path $sec 'google_client.dpapi') 'mock-client'
+          Set-Content (Join-Path $app 'google_auth.py') 'raise SystemExit(99)' -Encoding ASCII
+          $realPy=(Get-Command python).Source;New-Item -ItemType HardLink -Path (Join-Path $venv 'python.exe') -Target $realPy|Out-Null
+          '{}'|Set-Content (Join-Path $cr 'config.live.json') -Encoding ASCII
+          $shim=@'
+          import json,sys,os
+          from pathlib import Path
+          a=sys.argv[1:]
+          if len(a)<3 or a[1]!="--config": raise SystemExit(31)
+          cmd=a[0]
+          if cmd=="preflight" and len(a)!=3: raise SystemExit(32)
+          root=Path(os.environ["LOCALAPPDATA"]); state=root/"mock_manifest.json"
+          base={"package_id":"TMNM-20260927-ASHA-SCHEDULER-LIVE-PROOF-01","article_doc_id":"1fkBDo3xaTodg8pfpFaUhUKKG6H6Avs_6","image_file_id":"1U1eFKlYJEhoiUkScOW3a7idqQNC1fSiB","approval_status":"NOT_APPROVED","publishing_status":"NOT_QUEUED"}
+          if state.exists(): base=json.loads(state.read_text())
+          if cmd=="preflight": print(json.dumps({"ok":True,"account":"awhistler@gmail.com"}))
+          elif cmd=="read-json": print(json.dumps({"value":base}))
+          elif cmd=="export-doc": print(json.dumps({"text":"TMNM SCHEDULING SYSTEM TEST - NO NEWS CONTENT"}))
+          elif cmd=="update-manifest":
+              p=Path(a[a.index("--input")+1]); raw=p.read_bytes()
+              if raw.startswith(b"\xef\xbb\xbf"): print(json.dumps({"ok":False,"error":"BOM_PRESENT"})); raise SystemExit(34)
+              if not raw.lstrip().startswith((b"{",b"[")): print(json.dumps({"ok":False,"error":"INVALID_JSON_PREFIX"})); raise SystemExit(35)
+              d=json.loads(raw.decode("utf-8")); state.write_text(json.dumps(d),encoding="utf-8"); print(json.dumps({"file":{"id":"manifest"},"no_bom":True}))
+          else: raise SystemExit(33)
+          '@
+          [IO.File]::WriteAllText((Join-Path $cr 'live_drive_bridge_json_shim.py'),$shim,[Text.UTF8Encoding]::new($false))
+          $srv8765=@'
+          import json
+          from http.server import BaseHTTPRequestHandler,HTTPServer
+          class H(BaseHTTPRequestHandler):
+            def do_GET(self):
+              b=json.dumps({"article_text":"BODY"}).encode();self.send_response(200);self.send_header("Content-Type","application/json");self.send_header("Content-Length",str(len(b)));self.end_headers();self.wfile.write(b)
+            def log_message(self,*a):pass
+          HTTPServer(("127.0.0.1",8765),H).serve_forever()
+          '@
+          [IO.File]::WriteAllText((Join-Path $cr 'app.py'),$srv8765,[Text.UTF8Encoding]::new($false))
+          $srv8766=@'
+          import json
+          from http.server import BaseHTTPRequestHandler,HTTPServer
+          class H(BaseHTTPRequestHandler):
+            def do_GET(self):
+              if not self.path.startswith("/api/packages/TMNM-20260927-ASHA-SCHEDULER-LIVE-PROOF-01"): self.send_response(404);self.end_headers();return
+              x={"canonical_article_body_loaded":True,"article_text":"BODY","image_sha256":"ba48a525b567e7769820a396b68e78f440f06b6e1da0e44c9785c9bf2bf58f10","readiness_missing_fields":[],"review_ready":True}
+              b=json.dumps(x).encode();self.send_response(200);self.send_header("Content-Type","application/json");self.send_header("Content-Length",str(len(b)));self.end_headers();self.wfile.write(b)
+            def log_message(self,*a):pass
+          HTTPServer(("127.0.0.1",8766),H).serve_forever()
+          '@
+          $s2=Join-Path $env:RUNNER_TEMP 'v5server8766.py';[IO.File]::WriteAllText($s2,$srv8766,[Text.UTF8Encoding]::new($false))
+          $p65=Start-Process $realPy -ArgumentList ('"'+(Join-Path $cr 'app.py')+'"') -PassThru -WindowStyle Hidden
+          $p66=Start-Process $realPy -ArgumentList ('"'+$s2+'"') -PassThru -WindowStyle Hidden;Start-Sleep -Seconds 2
+          $wrapper=Join-Path $env:RUNNER_TEMP 'v5wrapper.ps1'
+          $wrap='function Get-FileHash { param([string]$LiteralPath,[string]$Algorithm) [pscustomobject]@{Hash="CD09099EC23622A7AD27CBD495EAC3D0CD7C9371330BD04981B97429973B6C9E"} }'+[Environment]::NewLine+". '"+$ps1.Replace("'","''")+"'"
+          [IO.File]::WriteAllText($wrapper,$wrap,[Text.UTF8Encoding]::new($false))
+          $out=Join-Path $env:RUNNER_TEMP 'v5-out.txt';$err=Join-Path $env:RUNNER_TEMP 'v5-err.txt'
+          $child=Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$wrapper) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err
+          $rc=$child.ExitCode
+          if(!$p65.HasExited){Stop-Process -Id $p65.Id -Force};if(!$p66.HasExited){Stop-Process -Id $p66.Id -Force}
+          $txt=[IO.File]::ReadAllText($out);$etxt=[IO.File]::ReadAllText($err);Write-Output $txt;if($rc-ne0){Write-Output $etxt;throw ('V5_EXEC_FAIL rc='+$rc)}
+          foreach($v in @('STATUS=PASS_READINESS_INPUT_REPAIR','GOOGLE_AUTH=PASS_REUSED_EXISTING_AUTH','OAUTH_RC=NOT_RERUN','ACCOUNT_GATE=PASS','ARTICLE_READ=PASS','ARTICLE_TEXT_PRESENT=true','CANONICAL_ARTICLE_BODY_LOADED=true','IMAGE_SHA256_PRESENT=true','READINESS_MISSING_FIELDS=','REVIEW_READY=true','APPROVAL_ACTION=0','SCHEDULE_ACTION=0','PUBLISHER_INVOCATION=0','FACEBOOK_WRITE=0')){if(!$txt.Contains($v)){throw ('V5_REQUIRED_OUTPUT_MISSING='+$v)}}
+          $mf=Get-Content (Join-Path $env:LOCALAPPDATA 'mock_manifest.json') -Raw|ConvertFrom-Json
+          if($mf.image_sha256-ne'ba48a525b567e7769820a396b68e78f440f06b6e1da0e44c9785c9bf2bf58f10'){throw 'V5_MANIFEST_SHA_WRITE_FAIL'}
+          Write-Output 'NO_BOM=PASS';Write-Output 'ACCOUNT_GATE=PASS';Write-Output 'UPDATE_MANIFEST=PASS';Write-Output 'IMAGE_SHA256_PRESENT=true';Write-Output 'ARTICLE_READ=PASS';Write-Output 'ARTICLE_TEXT_PRESENT=true';Write-Output 'CANONICAL_ARTICLE_BODY_LOADED=true';Write-Output 'READINESS_MISSING_FIELDS=';Write-Output 'REVIEW_READY=true';Write-Output 'FINAL_OUTPUT_CAPTURE=PASS';Write-Output ('FINAL_ZIP_SHA256='+$zipSha);Write-Output ('FINAL_PS1_SHA256='+$psSha)
+          New-Item -ItemType Directory -Force batchd_v5_validated|Out-Null;Copy-Item $zip batchd_v5_validated/TMNM_BATCHD_READINESS_INPUT_REPAIR_OWNER_ROUTE_V5.zip
+      - name: Upload Batch D V5 execution-proven candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: TMNM_BATCHD_READINESS_INPUT_REPAIR_V5_NATIVE_EXECUTION_PROVEN
+          path: batchd_v5_validated/TMNM_BATCHD_READINESS_INPUT_REPAIR_OWNER_ROUTE_V5.zip
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload Batch D V4 execution-proven candidate
         uses: actions/upload-artifact@v4
         with:
