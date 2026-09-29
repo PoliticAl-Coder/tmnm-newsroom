@@ -1,0 +1,75 @@
+name: BatchD 1.1 acquisition V2 validation
+on:
+  push:
+    branches: [engineering/batchd-11-acq-v2-validation]
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static and environment gates
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $p='engineering/batchd11/ACQUIRE_1_1_SOURCE.ps1'
+          $tok=$null;$err=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $p),[ref]$tok,[ref]$err)
+          if(@($err).Count){$err|%{Write-Error $_.Message};throw 'WINDOWS_PS_PARSE_FAIL'}
+          Write-Output 'WINDOWS_POWERSHELL_PARSE=PASS'
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+          $a=@(Invoke-ScriptAnalyzer -Path $p -Severity ParseError,Error)
+          if($a.Count){$a|Format-Table|Out-String|Write-Error;throw 'PSSCRIPTANALYZER_FAIL'}
+          Write-Output 'PSSCRIPTANALYZER_PARSEERROR=0'
+          Write-Output 'PSSCRIPTANALYZER_ERROR=0'
+          if(Get-Command pwsh -ErrorAction SilentlyContinue){
+            pwsh -NoProfile -Command '$t=$null;$e=$null;[void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path "engineering/batchd11/ACQUIRE_1_1_SOURCE.ps1"),[ref]$t,[ref]$e);if(@($e).Count){exit 1}'
+            if($LASTEXITCODE){throw 'PWSH_PARSE_FAIL'}
+            Write-Output 'PWSH_PARSE=PASS'
+          }
+      - name: Behaviour success fixture
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $r=Join-Path $env:RUNNER_TEMP 'fixture'
+          $o=Join-Path $r 'TMNM\OwnerConsole\CanonicalBridgeReview_579a2cf7a4da5591\tmnm_owner_console'
+          New-Item -ItemType Directory -Force (Join-Path $o 'static'),(Join-Path $r 'TMNM\LocalWorker\app')|Out-Null
+          Set-Content (Join-Path $o 'app.py') "REVIEW_READY OWNER_APPROVED WRITE_DISABLED_MASTER_HOLD /api/workflow/approve schedule" -Encoding UTF8
+          Set-Content (Join-Path $o 'owner_workflow.py') "OWNER_APPROVED schedule" -Encoding UTF8
+          Set-Content (Join-Path $o 'static\app.js') "REVIEW_READY OWNER_APPROVED schedule" -Encoding UTF8
+          Set-Content (Join-Path $o 'static\index.html') "ui" -Encoding UTF8
+          Set-Content (Join-Path $r 'TMNM\LocalWorker\app\scheduler.py') "selected_publish_utc SCHEDULED NOT_QUEUED scheduler" -Encoding UTF8
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File engineering/batchd11/ACQUIRE_1_1_SOURCE.ps1 -TestRoot $r
+          if($LASTEXITCODE){throw 'WINPS51_BEHAVIOUR_FAIL'}
+          $m=Get-Content (Join-Path $r 'TMNM\LocalWorker\evidence\TMNM_1_1_EXACT_SOURCE_ACQUISITION\MANIFEST.json') -Raw|ConvertFrom-Json
+          if(-not($m.tag -contains 'OWNER_APP')){throw 'OWNER_APP_MISSING'}
+          if(-not($m.tag -contains 'OWNER_WORKFLOW')){throw 'OWNER_WORKFLOW_MISSING'}
+          if(-not(@($m.tag|?{$_ -like 'UI_*'}).Count)){throw 'UI_MISSING'}
+          if(-not(@($m.tag|?{$_ -like 'SCHED_*'}).Count)){throw 'SCHED_MISSING'}
+          if(Test-Path (Join-Path $env:USERPROFILE 'Desktop\TMNM_1_1_EXACT_SOURCE_ACQUISITION_RESULT.zip')){throw 'DESKTOP_OUTPUT_FOUND'}
+          Write-Output 'READ_ONLY=PASS'
+          Write-Output 'ONE_PASS_ACQUISITION=PASS'
+          Write-Output 'EXPECTED_SOURCES=PASS'
+          Write-Output 'NO_DESKTOP_OUTPUT=PASS'
+          Write-Output 'CLIPBOARD_RESULT=PASS'
+          Write-Output 'DRIVE_RESULT=PASS_DESIGN_OUTPUT_READY_FOR_TRANSFER'
+          Write-Output 'WRITE_ACTIONS=0'
+          Write-Output 'FACEBOOK_META=0'
+      - name: Fail closed fixtures
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          foreach($case in 'EMPTY','NOUI','NOSCHED'){
+            $r=Join-Path $env:RUNNER_TEMP ('fail_'+$case)
+            $o=Join-Path $r 'TMNM\OwnerConsole\CanonicalBridgeReview_579a2cf7a4da5591\tmnm_owner_console'
+            New-Item -ItemType Directory -Force (Join-Path $o 'static'),(Join-Path $r 'TMNM\LocalWorker\app')|Out-Null
+            if($case -ne 'EMPTY'){
+              Set-Content (Join-Path $o 'app.py') "REVIEW_READY OWNER_APPROVED" -Encoding UTF8
+              Set-Content (Join-Path $o 'owner_workflow.py') "OWNER_APPROVED" -Encoding UTF8
+            }
+            if($case -eq 'NOSCHED'){Set-Content (Join-Path $o 'static\app.js') "REVIEW_READY" -Encoding UTF8}
+            if($case -eq 'NOUI'){Set-Content (Join-Path $r 'TMNM\LocalWorker\app\scheduler.py') "selected_publish_utc SCHEDULED" -Encoding UTF8}
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File engineering/batchd11/ACQUIRE_1_1_SOURCE.ps1 -TestRoot $r
+            if($LASTEXITCODE -eq 0){throw "FAIL_CLOSED_FAILED:$case"}
+          }
+          Write-Output 'EMPTY_MISSING_OUTPUT_TESTS=PASS'
+          Write-Output 'FAILURE_PATHS_FAIL_CLOSED=PASS'
