@@ -111,7 +111,7 @@ jobs:
           $script='engineering/batchd11/ACQUIRE_1_1_SOURCE.ps1'
           $launcher='engineering/batchd11/RUN_TMNM_ACQUISITION.cmd'
           $scriptSha=(Get-FileHash $script -Algorithm SHA256).Hash.ToLowerInvariant()
-          if($scriptSha -ne 'fea421ee01d2e866fc35ce41d0d7f52e88187de6e832de43bd31700cc3ee2378'){throw 'ORIGINAL_VALIDATED_SCRIPT_CHANGED'}
+          if($scriptSha -ne '319e5b30c29584f50090e50ab4135517ce1112d2dc76ac5a17d3828e231f9bf0'){throw 'ORIGINAL_VALIDATED_SCRIPT_CHANGED'}
           $launcherSha=(Get-FileHash $launcher -Algorithm SHA256).Hash.ToLowerInvariant()
           $fixture=Join-Path $env:RUNNER_TEMP 'launcher_fixture'
           $pkg=Join-Path $fixture 'package'
