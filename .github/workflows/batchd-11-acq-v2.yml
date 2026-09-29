@@ -123,7 +123,9 @@ jobs:
           Set-Content (Join-Path $o 'static\app.js') "REVIEW_READY OWNER_APPROVED schedule" -Encoding UTF8
           Set-Content (Join-Path $o 'static\index.html') "ui" -Encoding UTF8
           Set-Content (Join-Path $env:LOCALAPPDATA 'TMNM\LocalWorker\app\scheduler.py') "selected_publish_utc SCHEDULED NOT_QUEUED scheduler" -Encoding UTF8
-          $out=cmd.exe /d /c "echo.|call \"$(Resolve-Path (Join-Path $pkg 'RUN_TMNM_ACQUISITION.cmd'))\"" 2>&1 | Out-String
+          $launcherPath=(Resolve-Path (Join-Path $pkg 'RUN_TMNM_ACQUISITION.cmd')).Path
+          $cmdLine='echo.|call "'+$launcherPath+'"'
+          $out=cmd.exe /d /c $cmdLine 2>&1 | Out-String
           if($LASTEXITCODE -ne 0){throw "ONE_CLICK_LAUNCH_FAIL:$out"}
           if($out -notmatch 'STATUS=PASS'){throw 'VISIBLE_PASS_FAIL_MISSING'}
           $clip=Get-Clipboard -Raw
