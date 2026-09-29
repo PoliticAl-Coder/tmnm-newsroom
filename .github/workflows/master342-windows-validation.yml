@@ -701,3 +701,48 @@ jobs:
           path: batchd_payload_409_capture_package/
           if-no-files-found: error
           retention-days: 7
+
+      - name: Resolved readiness trace native Windows gate
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $p='engineering/batchd/TMNM_8766_RESOLVED_READINESS_TRACE.ps1'
+          $tokens=$null;$errors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile((Resolve-Path $p),[ref]$tokens,[ref]$errors)
+          if($errors.Count-ne0){throw 'READINESS_TRACE_PARSE_FAIL'}
+          $s=[IO.File]::ReadAllText((Resolve-Path $p))
+          foreach($x in @('/api/workflow/approve','/api/workflow/schedule','/api/workflow/publish','/api/publish-now','facebook.com','graph.facebook','Stop-Process','Start-Process','app.py')){if($s.Contains($x)){throw ('READINESS_TRACE_SCOPE_VIOLATION='+$x)}}
+          $fixture=@'
+          import json
+          from http.server import BaseHTTPRequestHandler,HTTPServer
+          class H(BaseHTTPRequestHandler):
+              def do_GET(self):
+                  x={"canonical_article_body_loaded":True,"review_ready":False,"review_state":"REVIEW_READY","workflow_status":"READY_FOR_REVIEW","production_status":"READY_FOR_REVIEW","destination":"TMNM","package_id":"TMNM-20260927-ASHA-SCHEDULER-LIVE-PROOF-01","title":"T","author":"A","article_text":"BODY","article_doc_id":"DOC","image":{"source_drive_id":"IMG","source_sha256":""},"ok":True,"readiness_missing_fields":["canonical_image_sha256"],"hydration_error":""}
+                  b=json.dumps(x).encode();self.send_response(200);self.send_header("Content-Type","application/json");self.send_header("Content-Length",str(len(b)));self.end_headers();self.wfile.write(b)
+              def log_message(self,*a): pass
+          HTTPServer(("127.0.0.1",8766),H).handle_request()
+          '@
+          $mock=Join-Path $env:RUNNER_TEMP 'mockreadiness.py';[IO.File]::WriteAllText($mock,$fixture,(New-Object Text.UTF8Encoding($false)))
+          $py=Start-Process python -ArgumentList ('"'+$mock+'"') -PassThru -WindowStyle Hidden;Start-Sleep -Milliseconds 500
+          $outFile=Join-Path $env:RUNNER_TEMP 'readiness-out.txt';$errFile=Join-Path $env:RUNNER_TEMP 'readiness-err.txt'
+          $proc=Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',(Resolve-Path $p)) -Wait -PassThru -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+          if(!$py.HasExited){$py.Kill()}
+          $out=[IO.File]::ReadAllText($outFile);Write-Output $out
+          if($proc.ExitCode-ne0){Write-Output ([IO.File]::ReadAllText($errFile));throw 'READINESS_TRACE_EXEC_FAIL'}
+          foreach($x in @('CANONICAL_ARTICLE_BODY_LOADED=true','REVIEW_READY=false','REVIEW_STATE=REVIEW_READY','WORKFLOW_STATUS=READY_FOR_REVIEW','PRODUCTION_STATUS=READY_FOR_REVIEW','DESTINATION=TMNM','PACKAGE_ID_PRESENT=true','TITLE_PRESENT=true','AUTHOR_PRESENT=true','ARTICLE_TEXT_PRESENT=true','READINESS_MISSING_FIELDS=canonical_image_sha256','READINESS_INPUT_IMAGE_SHA256_PRESENT=false')){if(!$out.Contains($x)){throw ('REQUIRED_OUTPUT_NOT_CAPTURED='+$x)}}
+          $sha=(Get-FileHash $p -Algorithm SHA256).Hash.ToLowerInvariant()
+          New-Item -ItemType Directory -Force -Path batchd_resolved_readiness_trace_package|Out-Null
+          Copy-Item $p batchd_resolved_readiness_trace_package/TMNM_8766_RESOLVED_READINESS_TRACE.ps1
+          '@echo off
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0TMNM_8766_RESOLVED_READINESS_TRACE.ps1"
+          echo.
+          pause' | Set-Content batchd_resolved_readiness_trace_package/RUN_ME_RESOLVED_READINESS_TRACE.cmd -Encoding ASCII
+          if((Get-FileHash batchd_resolved_readiness_trace_package/TMNM_8766_RESOLVED_READINESS_TRACE.ps1 -Algorithm SHA256).Hash.ToLowerInvariant()-ne$sha){throw 'TRACE_BYTE_BIND_FAIL'}
+          Write-Output 'PARSER=PASS';Write-Output 'REQUIRED_OUTPUT_FIELDS_CAPTURED=PASS';Write-Output 'DIAGNOSTIC_SCOPE=PASS';Write-Output ('FINAL_PS1_SHA256='+$sha)
+      - name: Upload resolved readiness trace package
+        uses: actions/upload-artifact@v4
+        with:
+          name: TMNM_8766_RESOLVED_READINESS_TRACE_NATIVE_VALIDATED
+          path: batchd_resolved_readiness_trace_package/
+          if-no-files-found: error
+          retention-days: 7
