@@ -475,14 +475,14 @@ jobs:
           $actual=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
           $tokens=$null;$errors=$null
           [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path -LiteralPath $target).Path,[ref]$tokens,[ref]$errors)
-          if(@($errors).Count){$errors|ForEach-Object{Write-Error $_.Message};throw "BATCHD_DIAG_V2_PARSE_FAIL count=$(@($errors).Count)"}
+          if(@($errors).Count){$errors|ForEach-Object{Write-Error $_.Message};throw "BATCHD_DIAG_V3_PARSE_FAIL count=$(@($errors).Count)"}
           $body=Get-Content -LiteralPath $target -Raw
-          if($body -match '(?im)(^|[^A-Za-z0-9_])\\$pid([^A-Za-z0-9_]|$)'){throw 'BATCHD_DIAG_V2_RESERVED_PID_COLLISION'}
-          if($body.IndexOf('$packageId',[StringComparison]::OrdinalIgnoreCase) -lt 0){throw 'BATCHD_DIAG_V2_PACKAGEID_FIX_MISSING'}
-          Write-Output 'BATCHD_DIAG_V2_PARSEFILE_PASS=true'
-          Write-Output 'BATCHD_DIAG_V2_PARSE_ERRORS=0'
-          Write-Output 'BATCHD_DIAG_V2_RESERVED_VARIABLE_GATE=PASS'
-          Write-Output "BATCHD_DIAG_V2_VALIDATED_PS1_SHA256=$actual"
+          if($body -match '(?im)(^|[^A-Za-z0-9_])\\$pid([^A-Za-z0-9_]|$)'){throw 'BATCHD_DIAG_V3_RESERVED_PID_COLLISION'}
+          if($body.IndexOf('$packageId',[StringComparison]::OrdinalIgnoreCase) -lt 0){throw 'BATCHD_DIAG_V3_PACKAGEID_FIX_MISSING'}
+          Write-Output 'BATCHD_DIAG_V3_PARSEFILE_PASS=true'
+          Write-Output 'BATCHD_DIAG_V3_PARSE_ERRORS=0'
+          Write-Output 'BATCHD_DIAG_V3_RESERVED_VARIABLE_GATE=PASS'
+          Write-Output "BATCHD_DIAG_V3_VALIDATED_PS1_SHA256=$actual"
           New-Item -ItemType Directory -Force -Path batchd_diag_v2_package|Out-Null
           Copy-Item -LiteralPath $target -Destination batchd_diag_v2_package/TMNM_LIVE_8766_SNAPSHOT_DIAG_V2.ps1
           '@echo off
@@ -490,13 +490,13 @@ jobs:
           echo.
           pause' | Set-Content -LiteralPath batchd_diag_v2_package/RUN_ME_READ_ONLY_V2.cmd -Encoding ASCII
           $inside=(Get-FileHash -LiteralPath batchd_diag_v2_package/TMNM_LIVE_8766_SNAPSHOT_DIAG_V2.ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
-          if($inside-ne$actual){throw 'BATCHD_DIAG_V2_PACKAGE_BYTE_MISMATCH'}
-          Write-Output "BATCHD_DIAG_V2_PACKAGED_PS1_SHA256=$inside"
-          Write-Output 'BATCHD_DIAG_V2_PS1_BYTE_MATCH=true'
+          if($inside-ne$actual){throw 'BATCHD_DIAG_V3_PACKAGE_BYTE_MISMATCH'}
+          Write-Output "BATCHD_DIAG_V3_PACKAGED_PS1_SHA256=$inside"
+          Write-Output 'BATCHD_DIAG_V3_PS1_BYTE_MATCH=true'
       - name: Upload Batch D snapshot diagnostic V2 validated package
         uses: actions/upload-artifact@v4
         with:
-          name: TMNM_LIVE_8766_SNAPSHOT_DIAG_V2_NATIVE_VALIDATED
+          name: TMNM_LIVE_8766_SNAPSHOT_DIAG_V3_NATIVE_VALIDATED
           path: batchd_diag_v2_package/
           if-no-files-found: error
           retention-days: 7
@@ -747,18 +747,18 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Batch D V2 full native Windows contract execution
+      - name: Batch D V3 full native Windows contract execution
         shell: powershell
         run: |
           $ErrorActionPreference='Stop'
-          $b64=[IO.File]::ReadAllText('engineering/batchd/v2_owner_route.zip.b64').Trim()
-          $zip=Join-Path $env:RUNNER_TEMP 'v2.zip';[IO.File]::WriteAllBytes($zip,[Convert]::FromBase64String($b64))
+          $b64=[IO.File]::ReadAllText('engineering/batchd/v3_owner_route.zip.b64').Trim()
+          $zip=Join-Path $env:RUNNER_TEMP 'v3.zip';[IO.File]::WriteAllBytes($zip,[Convert]::FromBase64String($b64))
           $zipSha=(Microsoft.PowerShell.Utility\Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-          if($zipSha-ne'2898f33fcf29f68969b7285e6358c4d20f7cd3db2ac41a89214410f48f3d2988'){throw 'V2_ZIP_HASH_MISMATCH'}
-          $x=Join-Path $env:RUNNER_TEMP 'v2';Expand-Archive $zip $x -Force
+          if($zipSha-ne'93085aba6c2e6d410928970a2398001205d4f7f209ab88b8d9608ec29f4cdb12'){throw 'V3_ZIP_HASH_MISMATCH'}
+          $x=Join-Path $env:RUNNER_TEMP 'v3';Expand-Archive $zip $x -Force
           $ps1=Join-Path $x 'TMNM_BATCHD_READINESS_INPUT_REPAIR.ps1'
           $psSha=(Microsoft.PowerShell.Utility\Get-FileHash $ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
-          if($psSha-ne'7c063eff42b215b835529999d30a04bcfb3dcfd26c2372b5ea7a54dbe92d166d'){throw 'V2_PS1_HASH_MISMATCH'}
+          if($psSha-ne'7fa303b32fae64bccb321c1a322ce3ee1073f0187cd4c135a0c15baf7b5224d3'){throw 'V3_PS1_HASH_MISMATCH'}
           $nativeLocal=$env:LOCALAPPDATA;$env:LOCALAPPDATA=Join-Path $nativeLocal 'TMNMV2Validation'
           $worker=Join-Path $env:LOCALAPPDATA 'TMNM\LocalWorker';$app=Join-Path $worker 'app';$sec=Join-Path $worker 'secrets';$venv=Join-Path $worker '.venv\Scripts'
           $cr=Join-Path $env:LOCALAPPDATA 'TMNM\ControlRoom\control_room';New-Item -ItemType Directory -Force $app,$sec,$venv,$cr|Out-Null
@@ -811,16 +811,16 @@ jobs:
           $child=Start-Process powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$wrapper) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err
           $rc=$child.ExitCode
           if(!$p65.HasExited){Stop-Process -Id $p65.Id -Force};if(!$p66.HasExited){Stop-Process -Id $p66.Id -Force}
-          $txt=[IO.File]::ReadAllText($out);$etxt=[IO.File]::ReadAllText($err);Write-Output $txt;if($rc-ne0){Write-Output $etxt;throw ('V2_EXEC_FAIL rc='+$rc)}
-          foreach($v in @('STATUS=PASS_READINESS_INPUT_REPAIR','GOOGLE_AUTH=PASS','ACCOUNT_GATE=PASS','ARTICLE_READ=PASS','ARTICLE_TEXT_PRESENT=true','CANONICAL_ARTICLE_BODY_LOADED=true','IMAGE_SHA256_PRESENT=true','READINESS_MISSING_FIELDS=','REVIEW_READY=true','APPROVAL_ACTION=0','SCHEDULE_ACTION=0','PUBLISHER_INVOCATION=0','FACEBOOK_WRITE=0')){if(!$txt.Contains($v)){throw ('V2_REQUIRED_OUTPUT_MISSING='+$v)}}
+          $txt=[IO.File]::ReadAllText($out);$etxt=[IO.File]::ReadAllText($err);Write-Output $txt;if($rc-ne0){Write-Output $etxt;throw ('V3_EXEC_FAIL rc='+$rc)}
+          foreach($v in @('STATUS=PASS_READINESS_INPUT_REPAIR','GOOGLE_AUTH=PASS','ACCOUNT_GATE=PASS','ARTICLE_READ=PASS','ARTICLE_TEXT_PRESENT=true','CANONICAL_ARTICLE_BODY_LOADED=true','IMAGE_SHA256_PRESENT=true','READINESS_MISSING_FIELDS=','REVIEW_READY=true','APPROVAL_ACTION=0','SCHEDULE_ACTION=0','PUBLISHER_INVOCATION=0','FACEBOOK_WRITE=0')){if(!$txt.Contains($v)){throw ('V3_REQUIRED_OUTPUT_MISSING='+$v)}}
           $mf=Get-Content (Join-Path $env:LOCALAPPDATA 'mock_manifest.json') -Raw|ConvertFrom-Json
-          if($mf.image_sha256-ne'ba48a525b567e7769820a396b68e78f440f06b6e1da0e44c9785c9bf2bf58f10'){throw 'V2_MANIFEST_SHA_WRITE_FAIL'}
+          if($mf.image_sha256-ne'ba48a525b567e7769820a396b68e78f440f06b6e1da0e44c9785c9bf2bf58f10'){throw 'V3_MANIFEST_SHA_WRITE_FAIL'}
           Write-Output 'NATIVE_WINDOWS_RUN=PASS';Write-Output 'DRIVE_IDENTITY_GATE=PASS';Write-Output '8765_ARTICLE_HYDRATION_CONTRACT=PASS';Write-Output '8766_RESOLVED_PACKAGE_ROUTE=PASS';Write-Output 'FINAL_OUTPUT_CAPTURE=PASS';Write-Output ('FINAL_ZIP_SHA256='+$zipSha);Write-Output ('FINAL_PS1_SHA256='+$psSha)
-          New-Item -ItemType Directory -Force batchd_v2_validated|Out-Null;Copy-Item $zip batchd_v2_validated/TMNM_BATCHD_READINESS_INPUT_REPAIR_OWNER_ROUTE_V2.zip
-      - name: Upload Batch D V2 execution-proven candidate
+          New-Item -ItemType Directory -Force batchd_v3_validated|Out-Null;Copy-Item $zip batchd_v3_validated/TMNM_BATCHD_READINESS_INPUT_REPAIR_OWNER_ROUTE_V3.zip
+      - name: Upload Batch D V3 execution-proven candidate
         uses: actions/upload-artifact@v4
         with:
-          name: TMNM_BATCHD_READINESS_INPUT_REPAIR_V2_NATIVE_EXECUTION_PROVEN
-          path: batchd_v2_validated/TMNM_BATCHD_READINESS_INPUT_REPAIR_OWNER_ROUTE_V2.zip
+          name: TMNM_BATCHD_READINESS_INPUT_REPAIR_V3_NATIVE_EXECUTION_PROVEN
+          path: batchd_v3_validated/TMNM_BATCHD_READINESS_INPUT_REPAIR_OWNER_ROUTE_V3.zip
           if-no-files-found: error
           retention-days: 7
