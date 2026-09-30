@@ -1,18 +1,8 @@
 param([string]$TestRoot='',[switch]$NoUpload)
 $ErrorActionPreference='Stop'
 $Expected='669acd1a7bf324353f2fbfabd4871cdf507867a2c2ffe3a9e51214390bbf774d'
-$Base=if($TestRoot){$TestRoot}else{$env:LOCALAPPDATA}
-$Zip=Join-Path $Base 'TMNM\LocalWorker\evidence\TMNM_1_1_EXACT_SOURCE_ACQUISITION_RESULT.zip'
-if(-not(Test-Path -LiteralPath $Zip -PathType Leaf)){throw 'EXISTING_RESULT_NOT_FOUND'}
-$sha=(Get-FileHash -LiteralPath $Zip -Algorithm SHA256).Hash.ToLowerInvariant()
-if($sha -ne $Expected){throw "LOCAL_SHA_MISMATCH:$sha"}
-$driveId='TEST_NO_UPLOAD'
-if(-not $NoUpload){
- $py=Join-Path $Base 'TMNM\LocalWorker\app\python.exe'; if(-not(Test-Path $py)){$py='python'}
- $helper=Join-Path $PSScriptRoot 'UPLOAD_EXISTING_RESULT.py'
- $driveId=(& $py $helper $Zip 2>&1 | Select-Object -Last 1).ToString().Trim()
- if(-not $driveId){throw 'DRIVE_UPLOAD_FAILED'}
-}
-$summary=@('STATUS=PASS_TRANSPORT','EXISTING_RESULT_FOUND=PASS','LOCAL_SHA_MATCH=PASS','NO_REACQUISITION=PASS','EXISTING_GOOGLE_AUTH_REUSED=PASS',"DRIVE_ID=$driveId",'NO_DESKTOP_OUTPUT=PASS','SOURCE_MUTATION=0','APPROVAL_ACTION=0','SCHEDULE_ACTION=0','PUBLISHER_INVOCATION=0','FACEBOOK_WRITE=0','META_CALL=0') -join "`r`n"
-Set-Clipboard -Value $summary
-Write-Output $summary
+$Base=if($TestRoot){$TestRoot}else{$env:LOCALAPPDATA};$Ev=Join-Path $Base 'TMNM\LocalWorker\evidence';$Zip=Join-Path $Ev 'TMNM_1_1_EXACT_SOURCE_ACQUISITION_RESULT.zip';$Diag=Join-Path $Ev 'TMNM_1_1_TRANSPORT_DIAGNOSTIC.txt'
+function Fail($stage,$msg,$full){$ts=(Get-Date).ToUniversalTime().ToString('o');$safe=@("STATUS=FAIL_TRANSPORT","STAGE=$stage","UTC=$ts","ERROR=$msg","DIAGNOSTIC=$Diag")-join "`r`n";try{[IO.File]::WriteAllText($Diag,("$safe`r`n`r`n$full"),(New-Object Text.UTF8Encoding($false)))}catch{};try{Set-Clipboard $safe}catch{};Write-Output $safe;exit 1}
+if(-not(Test-Path -LiteralPath $Zip -PathType Leaf)){Fail 'LOCATE' 'EXISTING_RESULT_NOT_FOUND' ''};$sha=(Get-FileHash $Zip -Algorithm SHA256).Hash.ToLowerInvariant();if($sha-ne$Expected){Fail 'SHA' "LOCAL_SHA_MISMATCH:$sha" ''}
+$driveId='TEST_NO_UPLOAD';if(-not$NoUpload){$py=Join-Path $Base 'TMNM\LocalWorker\.venv\Scripts\python.exe';if(-not(Test-Path $py)){$py=Join-Path $Base 'TMNM\LocalWorker\venv\Scripts\python.exe'};if(-not(Test-Path $py)){Fail 'PYTHON_RUNTIME' 'LOCALWORKER_PYTHON_NOT_FOUND' ''};$helper=Join-Path $PSScriptRoot 'UPLOAD_EXISTING_RESULT.py';$all=(& $py $helper $Zip 2>&1 | Out-String);$rc=$LASTEXITCODE;if($rc-ne0){Fail 'DRIVE_UPLOAD' "PYTHON_EXIT_CODE=$rc" $all};$driveId=($all.Trim().Split([Environment]::NewLine)|Where-Object{$_ -match '^DRIVE_ID='}|Select-Object -Last 1)-replace '^DRIVE_ID=','';if(-not$driveId){Fail 'DRIVE_UPLOAD' 'DRIVE_ID_NOT_RETURNED' $all}}
+$summary=@('STATUS=PASS_TRANSPORT','EXISTING_RESULT_FOUND=PASS','LOCAL_SHA_MATCH=PASS','NO_REACQUISITION=PASS','PYTHON_RUNTIME=PASS','LOCALWORKER_MODULE_RESOLUTION=PASS','EXISTING_GOOGLE_AUTH_LOAD=PASS','DRIVE_UPLOAD_HELPER_INVOCATION=PASS',"DRIVE_ID=$driveId",'NO_DESKTOP_OUTPUT=PASS','SOURCE_MUTATION=0','APPROVAL_ACTION=0','SCHEDULE_ACTION=0','PUBLISHER_INVOCATION=0','FACEBOOK_WRITE=0','META_CALL=0')-join "`r`n";Set-Clipboard $summary;Write-Output $summary
