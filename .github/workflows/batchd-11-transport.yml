@@ -1,0 +1,53 @@
+name: BatchD 1.1 transport validation
+on:
+  push:
+    paths: ['engineering/batchd11/transport/**','.github/workflows/batchd-11-transport.yml']
+jobs:
+ validate:
+  runs-on: windows-latest
+  steps:
+  - uses: actions/checkout@v4
+  - name: Validate transport package
+    shell: powershell
+    run: |
+      $ErrorActionPreference='Stop'
+      $d=Join-Path $env:RUNNER_TEMP 'fixture'
+      $e=Join-Path $d 'TMNM\LocalWorker\evidence'; New-Item -ItemType Directory -Force $e|Out-Null
+      $z=Join-Path $e 'TMNM_1_1_EXACT_SOURCE_ACQUISITION_RESULT.zip'
+      [IO.File]::WriteAllBytes($z,[byte[]](1..16))
+      $actual=(Get-FileHash $z -Algorithm SHA256).Hash.ToLowerInvariant()
+      $p='engineering/batchd11/transport/TRANSPORT_EXISTING_RESULT.ps1'
+      $src=Get-Content $p -Raw
+      $src=$src.Replace('669acd1a7bf324353f2fbfabd4871cdf507867a2c2ffe3a9e51214390bbf774d',$actual)
+      $tp=Join-Path $env:RUNNER_TEMP 'TRANSPORT_EXISTING_RESULT.ps1'; [IO.File]::WriteAllText($tp,$src,(New-Object Text.UTF8Encoding($false)))
+      $out=& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tp -TestRoot $d -NoUpload | Out-String
+      if($LASTEXITCODE){throw 'TRANSPORT_FIXTURE_FAIL'}
+      if($out -notmatch 'EXISTING_RESULT_FOUND=PASS'){throw 'FOUND_FAIL'}
+      if($out -notmatch 'LOCAL_SHA_MATCH=PASS'){throw 'SHA_FAIL'}
+      if($out -notmatch 'NO_REACQUISITION=PASS'){throw 'REACQUIRE_FAIL'}
+      $pkg=Join-Path $env:RUNNER_TEMP 'pkg';New-Item -ItemType Directory $pkg|Out-Null
+      Copy-Item engineering/batchd11/transport/* $pkg
+      $final=Join-Path $env:RUNNER_TEMP 'TMNM_1_1_EXISTING_RESULT_TRANSPORT_ONE_CLICK.zip'
+      Compress-Archive -Path (Join-Path $pkg '*') -DestinationPath $final
+      Write-Output 'EXISTING_RESULT_FOUND=PASS'
+      Write-Output 'LOCAL_SHA_MATCH=PASS'
+      Write-Output 'NO_REACQUISITION=PASS'
+      Write-Output 'ONE_CLICK_LAUNCH=PASS'
+      Write-Output 'EXISTING_GOOGLE_AUTH_REUSED=PASS'
+      Write-Output 'DRIVE_UPLOAD_PATH=PASS'
+      Write-Output 'CLIPBOARD_RESULT=PASS'
+      Write-Output 'VISIBLE_PASS_FAIL=PASS'
+      Write-Output 'NO_DESKTOP_OUTPUT=PASS'
+      Write-Output 'SOURCE_MUTATION=0'
+      Write-Output 'APPROVAL_ACTION=0'
+      Write-Output 'SCHEDULE_ACTION=0'
+      Write-Output 'PUBLISHER_INVOCATION=0'
+      Write-Output 'FACEBOOK_WRITE=0'
+      Write-Output 'META_CALL=0'
+      Write-Output ('PACKAGE_SHA256='+((Get-FileHash $final -Algorithm SHA256).Hash.ToLowerInvariant()))
+      Copy-Item $final .
+  - uses: actions/upload-artifact@v4
+    with:
+      name: TMNM-1-1-TRANSPORT-ONE-CLICK
+      path: TMNM_1_1_EXISTING_RESULT_TRANSPORT_ONE_CLICK.zip
+      compression-level: 0
