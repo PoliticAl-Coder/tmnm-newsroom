@@ -1,0 +1,29 @@
+name: TMNM public-safe task-query native QC
+on:
+  push:
+    paths:
+      - '.github/workflows/tmnm-task-query-native-qc.yml'
+  workflow_dispatch:
+jobs:
+  native:
+    runs-on: windows-2022
+    steps:
+      - name: Native PowerShell 5.1 synthetic task semantics
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          if($PSVersionTable.PSVersion.Major -ne 5){throw 'PS5.1 missing'}
+          function CheckTask($matches,$errorFlag) {
+            if($errorFlag){return 'HOLD_QUERY'}
+            if(@($matches).Count -eq 0){return 'ABSENT'}
+            if(@($matches).Count -gt 1){return 'HOLD_MULTIPLE'}
+            return 'EXISTS_ASSOCIATION_UNPROVEN'
+          }
+          if((CheckTask @() $false) -ne 'ABSENT'){throw 'absence'}
+          if((CheckTask @('one') $false) -ne 'EXISTS_ASSOCIATION_UNPROVEN'){throw 'single'}
+          if((CheckTask @('one','two') $false) -ne 'HOLD_MULTIPLE'){throw 'multiple'}
+          if((CheckTask @() $true) -ne 'HOLD_QUERY'){throw 'query'}
+          $json = @{status='HOLD';export=$false} | ConvertTo-Json -Compress
+          if([Text.Encoding]::UTF8.GetByteCount($json) -gt 16384){throw 'size'}
+          Write-Host 'PUBLIC_SYNTHETIC_TASK_TESTS=PASS'
+          Write-Host 'EXACT_PRIVATE_PACKAGE_NOT_TESTED'
