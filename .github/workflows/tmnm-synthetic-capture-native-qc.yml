@@ -1,0 +1,56 @@
+name: Public synthetic capture safety matrix
+on:
+  push:
+    paths:
+      - ".github/workflows/tmnm-synthetic-capture-native-qc.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-native-qc:
+    runs-on: windows-2022
+    timeout-minutes: 5
+    steps:
+      - name: Validate Windows PowerShell 5.1 and synthetic capture gates
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($PSVersionTable.PSVersion.ToString() -notmatch '^5\.1\.') { throw 'POWERSHELL_VERSION_MISMATCH' }
+          $dir = Join-Path $env:RUNNER_TEMP 'tmnm-synthetic-capture'
+          New-Item -ItemType Directory -Path $dir -Force | Out-Null
+          $source = Join-Path $dir 'synthetic_source.py'
+          $fixture = "def read_only_source():`n    return 'synthetic_public_fixture'`n"
+          [IO.File]::WriteAllText($source, $fixture, (New-Object System.Text.UTF8Encoding($false)))
+          $startHash = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
+          $read = [IO.File]::ReadAllText($source)
+          if (-not $read.Contains('synthetic_public_fixture')) { throw 'READ_FAIL' }
+          if ((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -ne $startHash) { throw 'SOURCE_MUTATED' }
+          Write-Output 'PASS: Windows PowerShell 5.1 and non-mutating synthetic source read'
+          $allowed = @{ 'source' = $source }
+          function Assert-Allowed([string]$role,[string]$path) {
+            if (-not $allowed.ContainsKey($role)) { throw 'UNKNOWN_ROLE' }
+            if ([IO.Path]::GetFullPath($path) -ne [IO.Path]::GetFullPath($allowed[$role])) { throw 'PATH_MISMATCH' }
+            if ((Get-Item -LiteralPath $path).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'UNSAFE_PATH' }
+          }
+          Assert-Allowed 'source' $source
+          try { Assert-Allowed 'unknown' $source; throw 'FAIL_OPEN_UNKNOWN_ROLE' } catch { if ($_.Exception.Message -eq 'FAIL_OPEN_UNKNOWN_ROLE') { throw } }
+          try { Assert-Allowed 'source' (Join-Path $dir 'unknown.py'); throw 'FAIL_OPEN_PATH' } catch { if ($_.Exception.Message -eq 'FAIL_OPEN_PATH') { throw } }
+          Write-Output 'PASS: exact allowlist and wrong-path fail closed'
+          function Assert-Privacy([string]$code) {
+            if ($code -match '(?i)(api[_-]?key|password|bearer\s+|private[_-]?key|client_secret)') { throw 'UNSAFE_SOURCE' }
+          }
+          Assert-Privacy $read
+          try { Assert-Privacy "password = 'PUBLIC_SYNTHETIC_NOT_A_SECRET'"; throw 'FAIL_OPEN_PRIVACY' } catch { if ($_.Exception.Message -eq 'FAIL_OPEN_PRIVACY') { throw } }
+          Write-Output 'PASS: synthetic secret negative test fail closed'
+          if ($read.Length -gt 12000) { throw 'OVERSIZE' }
+          try { if (('x' * 12001).Length -gt 12000) { throw 'OVERSIZE' }; throw 'FAIL_OPEN_SIZE' } catch { if ($_.Exception.Message -eq 'FAIL_OPEN_SIZE') { throw } }
+          Write-Output 'PASS: bounded output and overflow rejection'
+          $result = Join-Path $dir 'result.json'
+          $evidence = @{ state='PASS'; synthetic_only=$true; source_sha256=$startHash }
+          $json = ConvertTo-Json $evidence -Compress
+          [IO.File]::WriteAllText($result, $json, (New-Object System.Text.UTF8Encoding($false)))
+          $got = [IO.File]::ReadAllText($result) | ConvertFrom-Json
+          if ($got.source_sha256 -ne $startHash) { throw 'RESULT_READBACK_FAILED' }
+          if ((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -ne $startHash) { throw 'SOURCE_MUTATED' }
+          Write-Output ('PASS: local result recovery SHA256=' + (Get-FileHash -LiteralPath $result -Algorithm SHA256).Hash)
+          Write-Output 'HOLD: clipboard and real package launcher NOT tested'
