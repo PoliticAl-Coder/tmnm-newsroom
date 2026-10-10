@@ -1,0 +1,126 @@
+name: TMNM launcher and retention synthetic native QC
+on:
+  push:
+    paths:
+      - '.github/workflows/tmnm-launcher-retention-qc.yml'
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: windows-2022
+    timeout-minutes: 8
+    steps:
+      - name: Synthetic exact launcher negative and result retention
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          if ($PSVersionTable.PSVersion.Major -ne 5 -or $PSVersionTable.PSVersion.Minor -ne 1) { throw 'PS51_MISSING' }
+          $tmp=Join-Path $env:RUNNER_TEMP 'tmnm-exact-launcher-synthetic'
+          New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+          $runnerLocal=Join-Path $tmp 'localapp'
+          $env:LOCALAPPDATA=$runnerLocal
+          $pkg=Join-Path $tmp 'capture'
+          New-Item -ItemType Directory -Path $pkg -Force | Out-Null
+          $bat=@'
+          @echo off
+          setlocal DisableDelayedExpansion
+          cd /d "%~dp0"
+          set "PY=%LOCALAPPDATA%\TMNM\LocalWorker\.venv\Scripts\python.exe"
+          if not exist "%PY%" goto missing
+          "%PY%" -B -c "import sys;sys.exit(0 if sys.version_info >= (3,8) else 3)"
+          if errorlevel 1 goto version
+          "%PY%" -B "%~dp0CAPTURE_SOURCE.py"
+          if errorlevel 1 goto capturefail
+          rem Result exists before clipboard, and clipboard failure cannot discard it.
+          powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%~dp0COPY_RESULT_READ_ONLY.ps1"
+          if errorlevel 1 echo CLIPBOARD=HOLD_LOCAL_RESULT_PRESERVED
+          if exist "%~dp0CAPTURE_RESULT.json" start "" notepad.exe "%~dp0CAPTURE_RESULT.json"
+          echo RESULT_LOCAL_JSON_AND_ZIP=PRESERVED
+          exit /b 0
+          :missing
+          echo HOLD_PYTHON_MISSING
+          exit /b 2
+          :version
+          echo HOLD_PYTHON_VERSION_OR_BINDING
+          exit /b 3
+          :capturefail
+          echo HOLD_CAPTURE_ERROR_LOCAL_RESULT_IF_PRESENT
+          exit /b 4
+          '@
+          $batch=Join-Path $pkg 'RUN_READ_ONLY.bat'
+          [IO.File]::WriteAllText($batch,$bat,[Text.Encoding]::ASCII)
+          $copy=@'
+          $ErrorActionPreference = 'Stop'
+          try {
+            $p = Join-Path $PSScriptRoot 'CAPTURE_RESULT.json'
+            if (-not (Test-Path -LiteralPath $p -PathType Leaf)) { throw 'MissingResult' }
+            $raw = [System.IO.File]::ReadAllText($p)
+            if ($raw.Length -gt 42000) { throw 'OversizedResult' }
+            $sha = [System.Security.Cryptography.SHA256]::Create()
+            try {
+              $digest = [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($raw))).Replace('-','').ToLowerInvariant()
+            } finally { $sha.Dispose() }
+            Set-Clipboard -Value $raw -ErrorAction Stop
+            $back = Get-Clipboard -Raw -ErrorAction Stop
+            if ($back.TrimEnd([char]13,[char]10) -cne $raw.TrimEnd([char]13,[char]10)) { throw 'ClipboardMismatch' }
+            Write-Output ('CLIPBOARD=PASS; RESULT_SHA256=' + $digest)
+            exit 0
+          } catch {
+            Write-Output ('CLIPBOARD=HOLD_LOCAL_RESULT_PRESERVED; ERROR_TYPE=' + $_.Exception.GetType().Name)
+            exit 5
+          }
+          '@
+          $copyPath=Join-Path $pkg 'COPY_RESULT_READ_ONLY.ps1'
+          [IO.File]::WriteAllText($copyPath,$copy,[Text.Encoding]::UTF8)
+          $tokens=$null; $parseErrors=$null
+          [void][Management.Automation.Language.Parser]::ParseFile($copyPath,[ref]$tokens,[ref]$parseErrors)
+          if($parseErrors.Count -ne 0){throw 'CLIPBOARD_PS_PARSE_FAIL'}
+          Write-Output 'PASS: exact launcher and PS5.1 clipboard script syntactic staging'
+          $old=Join-Path $pkg 'CAPTURE_RESULT.json'
+          $zip=Join-Path $pkg 'CAPTURE_RESULT_LOCAL.zip'
+          cmd /c "set LOCALAPPDATA=$runnerLocal&& call `"$batch`""
+          if ($LASTEXITCODE -ne 2) {throw "EXPECTED_MISSING_PYTHON_EXIT_2_GOT_$LASTEXITCODE"}
+          if(Test-Path $old){throw 'MISSING_PYTHON_WROTE_RESULT'}
+          Write-Output 'PASS: actual batch missing Python returns 2 with no output'
+          $pyPath=Join-Path $runnerLocal 'TMNM\LocalWorker\.venv\Scripts'
+          New-Item -Force -ItemType Directory -Path $pyPath | Out-Null
+          $python=(Get-Command python).Source
+          Copy-Item -LiteralPath $python -Destination (Join-Path $pyPath 'python.exe')
+          $src=@'
+          import json,pathlib,zipfile,hashlib
+          root=pathlib.Path(__file__).resolve().parent
+          raw=json.dumps({"synthetic_only":True,"source":"PUBLIC_FAKE"},sort_keys=True).encode()
+          (root/"CAPTURE_RESULT.json").write_bytes(raw)
+          with zipfile.ZipFile(root/"CAPTURE_RESULT_LOCAL.zip","w") as z:z.write(root/"CAPTURE_RESULT.json","CAPTURE_RESULT.json")
+          print("SYNTHETIC_CAPTURE_PASS")
+          '@
+          [IO.File]::WriteAllText((Join-Path $pkg 'CAPTURE_SOURCE.py'),$src,(New-Object Text.UTF8Encoding($false)))
+          # Prevent GUI editor launch: use a non-GUI synthetic substitute at front of PATH.
+          $stub=Join-Path $tmp 'stub'
+          New-Item -ItemType Directory -Path $stub | Out-Null
+          [IO.File]::WriteAllText((Join-Path $stub 'notepad.cmd'),"@echo off`r`nexit /b 0`r`n")
+          $env:PATH=$stub+';'+$env:PATH
+          cmd /c "set LOCALAPPDATA=$runnerLocal&& call `"$batch`""
+          if($LASTEXITCODE -ne 0){throw "LAUNCHER_EXIT_$LASTEXITCODE"}
+          if(-not ((Test-Path $old) -and (Test-Path $zip))){throw 'LOCAL_OUTPUT_MISSING'}
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $za=[IO.Compression.ZipFile]::OpenRead($zip)
+          try {
+            $entry=$za.GetEntry('CAPTURE_RESULT.json')
+            if($null -eq $entry){throw 'ZIP_MEMBER_MISSING'}
+            $stream=$entry.Open()
+            try {
+              $reader=New-Object IO.StreamReader($stream)
+              $archived=$reader.ReadToEnd()
+            } finally {$reader.Dispose()}
+          } finally {$za.Dispose()}
+          if($archived -cne [IO.File]::ReadAllText($old)){throw 'ZIP_MEMBER_MISMATCH'}
+          $before=(Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash
+          Write-Output 'PASS: native launcher local JSON ZIP and member readback'
+          # A missing clipboard, simulated by overriding Set-Clipboard, may never erase the JSON.
+          function Set-Clipboard { throw 'SYNTHETIC_CLIPBOARD_DOWN' }
+          $failed=& $copyPath 2>&1 | Out-String
+          if($failed -notmatch 'CLIPBOARD=HOLD_LOCAL_RESULT_PRESERVED'){throw 'CLIPBOARD_FAIL_NOT_HANDLED'}
+          if((Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash -ne $before){throw 'CLIPBOARD_DESTROYED_JSON'}
+          if(-not (Test-Path $zip)){throw 'CLIPBOARD_DESTROYED_ZIP'}
+          Write-Output 'PASS: clipboard failure retains JSON ZIP and source SHA'
