@@ -12,7 +12,7 @@ jobs:
     timeout-minutes: 7
     steps:
       - uses: actions/checkout@v4
-      - name: Exact capture Python AST privacy suite
+      - name: Native Windows Python AST and privacy tests
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
@@ -22,4 +22,4 @@ jobs:
           python -B -m unittest discover -p 'TEST_*.py' -v
           if ($LASTEXITCODE -ne 0) { throw 'NATIVE_TEST_FAIL' }
           Pop-Location
-          Write-Output 'PASS: native capture module synthetic AST privacy suite'
+          Write-Output 'PASS: synthetic actual capture module suite'
