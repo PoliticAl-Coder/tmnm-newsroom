@@ -47,6 +47,10 @@ jobs:
           echo HOLD_CAPTURE_ERROR_LOCAL_RESULT_IF_PRESENT
           exit /b 4
           '@
+          # The unmodified batch launcher is separately tested for missing Python.
+          # Headless runner success branch suppresses only the GUI viewer;
+          # all capture, Python, clipboard, JSON/ZIP and exit behavior remains unchanged.
+          $batNoGui=$bat.Replace('if exist "%~dp0CAPTURE_RESULT.json" start "" notepad.exe "%~dp0CAPTURE_RESULT.json"', 'if exist "%~dp0CAPTURE_RESULT.json" echo SYNTHETIC_GUI_VIEWER_SUPPRESSED')
           $batch=Join-Path $pkg 'RUN_READ_ONLY.bat'
           [IO.File]::WriteAllText($batch,$bat,[Text.Encoding]::ASCII)
           $copy=@'
@@ -82,6 +86,7 @@ jobs:
           if ($LASTEXITCODE -ne 2) {throw "EXPECTED_MISSING_PYTHON_EXIT_2_GOT_$LASTEXITCODE"}
           if(Test-Path $old){throw 'MISSING_PYTHON_WROTE_RESULT'}
           Write-Output 'PASS: actual batch missing Python returns 2 with no output'
+          [IO.File]::WriteAllText($batch,$batNoGui,[Text.Encoding]::ASCII)
           $pyPath=Join-Path $runnerLocal 'TMNM\LocalWorker\.venv\Scripts'
           New-Item -Force -ItemType Directory -Path $pyPath | Out-Null
           $python=(Get-Command python).Source
