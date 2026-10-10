@@ -1,0 +1,33 @@
+name: Windows PowerShell 5.1 synthetic smoke test
+
+on:
+  push:
+    paths:
+      - '.github/workflows/windows-powershell51-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-powershell51:
+    runs-on: windows-2022
+    timeout-minutes: 5
+    steps:
+      - name: Verify Windows PowerShell 5.1 and synthetic read-only behavior
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($PSVersionTable.PSVersion.Major -ne 5 -or $PSVersionTable.PSVersion.Minor -ne 1) { throw 'Windows PowerShell 5.1 required' }
+          $tmp = Join-Path $env:RUNNER_TEMP 'tmnm_synthetic_source.py'
+          [System.IO.File]::WriteAllText($tmp, "def safe_read():`n    return 'synthetic_only'`n", [System.Text.UTF8Encoding]::new($false))
+          try {
+            $before = (Get-FileHash -LiteralPath $tmp -Algorithm SHA256).Hash
+            $read = [System.IO.File]::ReadAllText($tmp)
+            if (-not $read.Contains('synthetic_only')) { throw 'Fixture content mismatch' }
+            $after = (Get-FileHash -LiteralPath $tmp -Algorithm SHA256).Hash
+            if ($before -ne $after) { throw 'Read-only verification failed' }
+            Write-Output 'PASS: native Windows PowerShell 5.1, hash-stable synthetic read-only file test'
+          } finally {
+            Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+          }
