@@ -129,3 +129,5 @@ jobs:
           if((Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash -ne $before){throw 'CLIPBOARD_DESTROYED_JSON'}
           if(-not (Test-Path $zip)){throw 'CLIPBOARD_DESTROYED_ZIP'}
           Write-Output 'PASS: clipboard failure retains JSON ZIP and source SHA'
+          # The expected clipboard script exit code is 5; clear it after verifying failure behavior.
+          $global:LASTEXITCODE=0
