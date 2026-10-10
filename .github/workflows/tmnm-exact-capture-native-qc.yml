@@ -1,0 +1,71 @@
+name: Exact capture public synthetic native QC
+on:
+  push:
+    paths:
+      - '.github/workflows/tmnm-exact-capture-native-qc.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: windows-2022
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exact byte module Python AST and privacy tests
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $PSVersionTable.PSVersion.ToString()
+          if ($PSVersionTable.PSVersion.Major -ne 5 -or $PSVersionTable.PSVersion.Minor -ne 1) { throw 'NOT_PS51' }
+          python --version
+          Push-Location tests/synthetic_capture
+          python -B -m unittest discover -p 'TEST_*.py' -v
+          if ($LASTEXITCODE -ne 0) { throw 'NATIVE_PYTHON_TEST_FAIL' }
+          Pop-Location
+          Write-Output 'PASS: exact capture module AST and synthetic privacy tests'
+      - name: Synthetic source failure and recovery checks
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $dir=Join-Path $env:RUNNER_TEMP 'tmnm-native-qc'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          $script=Join-Path $dir 'native_extra.py'
+          @'
+          import tempfile,pathlib,hashlib,json,zipfile,sys
+          from EXACT_BODY_CAPTURE import inspect_one,ROOT_NAMES,capture,_privacy_check
+          with tempfile.TemporaryDirectory() as d:
+              root=pathlib.Path(d)
+              rel,names=ROOT_NAMES['claim']; p=root/rel; p.parent.mkdir(parents=True)
+              good="def process_claim():\n    route='/api/packages'\n    return route\n"
+              p.write_text(good,encoding='utf-8')
+              digest=hashlib.sha256(p.read_bytes()).hexdigest()
+              record,n=inspect_one(root,'claim',digest)
+              assert record['source_sha256']==digest
+              assert 'process_claim' in record['functions']
+              try:inspect_one(root,'claim','0'*64);raise AssertionError('hash allowed')
+              except ValueError:pass
+              p.unlink()
+              try:inspect_one(root,'claim',digest);raise AssertionError('missing allowed')
+              except ValueError:pass
+              p.write_text('def process_claim(:\n pass\n')
+              try:inspect_one(root,'claim',hashlib.sha256(p.read_bytes()).hexdigest());raise AssertionError('bad syntax allowed')
+              except SyntaxError:pass
+              p.write_text("def process_claim():\n    recovery_code='PUBLIC_FAKE_CANARY'\n")
+              try:inspect_one(root,'claim',hashlib.sha256(p.read_bytes()).hexdigest());raise AssertionError('privacy allowed')
+              except ValueError as e: assert 'PUBLIC_FAKE_CANARY' not in str(e)
+              out=root/'local.json'; out.write_text(json.dumps({'synthetic':True,'source_sha256':digest}))
+              archive=root/'local.zip'
+              with zipfile.ZipFile(archive,'w') as z:z.write(out,arcname='local.json')
+              before=(hashlib.sha256(out.read_bytes()).hexdigest(),hashlib.sha256(archive.read_bytes()).hexdigest())
+              try:raise RuntimeError('SyntheticClipboardUnavailable')
+              except RuntimeError:pass
+              assert out.exists() and archive.exists()
+              with zipfile.ZipFile(archive) as z:assert z.read('local.json')==out.read_bytes()
+              assert before==(hashlib.sha256(out.read_bytes()).hexdigest(),hashlib.sha256(archive.read_bytes()).hexdigest())
+              print('PASS: missing, wrong SHA, malformed AST, privacy canary; clipboard failure local JSON ZIP retained and read back')
+          '@ | Set-Content -LiteralPath $script -Encoding UTF8
+          $env:PYTHONPATH=(Join-Path $env:GITHUB_WORKSPACE 'tests/synthetic_capture')
+          python -B $script
+          if ($LASTEXITCODE -ne 0) { throw 'NATIVE_FAIL' }
+          Write-Output 'HOLD: original owner batch launcher and actual clipboard executable not tested'
