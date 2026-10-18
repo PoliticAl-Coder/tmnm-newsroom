@@ -73,6 +73,38 @@
         substack:"https://truthmattersnm.substack.com/p/the-cost-of-saying-no",
         facebook:"https://www.facebook.com/Truthmattersnewsmedia/posts/pfbid02tMaEgLrkrGidCJPKKZgf4SXHP9fNuaZJSkmKkHSXkvbsk55phZNV1kzfUfDthZBKl",
         evidence:"OWNER_REPORTED_PUBLISHED"
+      }),
+      Object.freeze({
+        id:"tmnm-20261015-spacex-space-jellyfish",
+        title:"The SpaceX Space Jellyfish — What's Really in That Glowing Cloud?",
+        subtitle:"Understanding the luminous clouds seen around rocket launches.",
+        author:"Politic-Al",
+        brand:"Politic-Al",
+        category:"Explainer",
+        series:null,
+        part:null,
+        publishedDate:"2026-10-15",
+        keywords:["SpaceX","rocket launch","science","space jellyfish","atmosphere"],
+        substack:"https://truthmattersnm.substack.com/p/the-spacex-space-jellyfish-whats",
+        facebook:null,
+        evidence:"PUBLISHED_BY_OWNER",
+        evidenceRef:"PIPELINE-20261015-JELLYFISH-OWNER-PUBLISHED-230"
+      }),
+      Object.freeze({
+        id:"tmnm-20260809-tony-sunday-sitdown",
+        title:"The Sunday Sit-Down: They Sold the Headline Before the Receipt Cleared",
+        subtitle:"A historical edition of Tony Two Sources' weekly Sunday Sit-Down.",
+        author:"Tony Two Sources",
+        brand:"TMNM",
+        category:"Analysis",
+        series:"The Sunday Sit-Down",
+        part:null,
+        publishedDate:"2026-08-09",
+        keywords:["Sunday Sit-Down","source audit","headlines","media","politics"],
+        substack:null,
+        facebook:"https://www.facebook.com/122120807949212493/posts/122120958357212493",
+        evidence:"PROVIDER_RECEIPT_RECORDED",
+        evidenceRef:"TMNM-20260809-TONY-SUNDAY-SITDOWN-01"
       })
     ]);
     const $ = id => document.getElementById(id);
@@ -86,7 +118,7 @@
     function link(parent,label,url,style){const valid=safeUrl(url);if(!valid)return;const a=document.createElement("a");a.className="link "+style;a.href=valid;a.target="_blank";a.rel="noopener noreferrer";a.textContent=label+" ↗";parent.append(a)}
     function card(article){const el=document.createElement("article");el.className="article";
       const meta=addText(el,"div","meta","");
-      addText(meta,"span","type",article.series?"Series · Part "+article.part:article.category);
+      addText(meta,"span","type",article.series?(article.part?"Series · Part "+article.part:"Series"):article.category);
       addText(meta,"span","",new Date(article.publishedDate+"T12:00:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"}));
       addText(el,"h3","",article.title);
       if(article.subtitle)addText(el,"p","dek",article.subtitle);
