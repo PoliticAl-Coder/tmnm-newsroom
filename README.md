@@ -15,6 +15,8 @@ Source of the Truth Matters News Media published-article index.
 - Visitor page: `economic-calendar.html` on the existing `gh-pages` branch.
 - Expected public URL (not verified as live): `https://political-coder.github.io/tmnm-newsroom/economic-calendar.html`
 - Calendar data: official embeddable TradingView Economic Calendar widget (third-party-controlled, automatically updated by provider, not TMNM-authored release figures).
+- Country filtering: accessible multi-select dropdown on economic-calendar.html, preserving the original 20-market default and providing quick UK + US / UK + US + Euro presets; changes rebuild TradingView's documented `countryFilter` embed configuration. Selected countries are reflected in a shareable allowlisted `?countries=gb,us` URL. Empty selections are rejected; no external API or cookies required.
+- Verification: source/readback, inline-JavaScript syntax and simulated DOM selection tests passed. A real public-browser test confirming TradingView iframe updates after Apply, plus mobile and UK timezone/DST inspection, is still required before classifying independent UI QC as passed.
 - Reciprocal navigation: economic-calendar page links to the published archive; archive index links to the calendar from navigation and a promotion strip.
 - Rights and technical caveats: keep the visible TradingView credit and fallback link; no copied economic-release dataset, scraped provider API, credentials, or private TMNM material. Verify external widget actually renders before promising the feature in a YouTube jingle.
 - Scope: GitHub Pages source HTML only. No local OwnerConsole, publisher scheduling, Google OAuth, broadcast, credentials or production DB changes.
