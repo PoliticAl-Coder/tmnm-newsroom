@@ -38,6 +38,32 @@
     .tag{font-size:12px;font-weight:800;color:#705219;background:#fff3d7;border:1px solid #ead7ad;border-radius:4px;padding:5px 10px}
     .calendar-panel{background:#fff;border:1px solid var(--line);border-radius:11px;box-shadow:0 5px 23px #0c1b310b;padding:20px}
     .external-note{padding:0 0 15px;margin:0;color:#4b5e73;font-size:13px}
+
+    .country-filter{position:relative;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:10px;padding:17px 19px;margin-bottom:15px;box-shadow:0 4px 17px #0c1b310a}
+    .country-filter-intro{flex:1 1 280px}
+    .country-filter-intro strong{font-size:16px}
+    .country-filter-intro p{font-size:13px;color:var(--muted);margin:3px 0 0}
+    .country-filter-controls{display:flex;align-items:center;flex-wrap:wrap;gap:13px}
+    .country-picker{position:relative;z-index:5}
+    .country-picker>summary{cursor:pointer;list-style:none;min-width:222px;min-height:44px;padding:10px 38px 10px 13px;display:flex;align-items:center;border-radius:7px;border:1px solid #abbace;color:#172d48;background:#f8fafc;font-weight:800;font-size:14px;position:relative}
+    .country-picker>summary::-webkit-details-marker{display:none}
+    .country-picker>summary:after{content:"⌄";position:absolute;right:12px;top:4px;font-size:24px;font-weight:400}
+    .country-picker[open]>summary{border-color:#a77d28;background:#fff8ea}
+    .country-picker>summary:focus-visible,.country-filter button:focus-visible,.country-filter input:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+    .country-menu{position:absolute;right:0;top:calc(100% + 6px);width:min(440px,calc(100vw - 48px));max-height:min(540px,66vh);overflow-y:auto;background:#fff;border:1px solid #c1cbd7;border-radius:9px;box-shadow:0 15px 35px #0c1b3133;padding:16px}
+    .country-quick{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-bottom:12px}
+    .country-filter button{font:inherit;cursor:pointer}
+    .country-preset{background:#f7f9fc;border:1px solid #b9c9d9;color:#1c4163;border-radius:5px;padding:6px 10px;font-size:12px;font-weight:750}
+    .country-fields{border:0;margin:0;padding:0}
+    .country-fields legend{font-size:13px;font-weight:750;margin-bottom:9px}
+    .country-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 10px}
+    .country-grid label{display:flex;align-items:center;gap:8px;font-size:13px;min-height:32px;padding:3px 4px;cursor:pointer}
+    .country-grid input{accent-color:#172d48;width:16px;height:16px;flex:0 0 16px}
+    .country-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--line);margin-top:12px;padding-top:13px}
+    .country-actions button{border:0;background:var(--navy);color:#fff;border-radius:6px;padding:10px 15px;font-size:13px;font-weight:800;min-height:41px}
+    .country-hint{font-size:12px;color:var(--muted)}
+    .country-filter-status{font-size:13px;color:#41546d;margin:0;min-height:19px}
+    .country-filter-status.error{color:#9d2929;font-weight:750}
     .tradingview-widget-container{height:710px;width:100%;min-width:0}
     .tradingview-widget-container__widget{height:calc(100% - 31px);width:100%}
     .tradingview-widget-copyright{font-size:12px;padding-top:6px}
@@ -56,7 +82,7 @@
     .foot-row{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
     footer a{color:#f2d18c}footer p{margin:5px 0 0}
     @media(max-width:760px){.head-row{align-items:flex-start;flex-direction:column}.head-links{justify-content:flex-start}.insight{grid-template-columns:1fr}.archive-banner{align-items:flex-start;flex-direction:column}.tradingview-widget-container{height:690px}}
-    @media(max-width:520px){.shell{padding:0 16px}.hero .shell{padding-top:42px;padding-bottom:43px}.calendar-panel{padding:10px}.tradingview-widget-container{height:650px}.info-card{padding:18px}.archive-banner{padding:22px}.hero p{font-size:16px}}
+    @media(max-width:520px){.country-filter{padding:14px}.country-filter-controls{width:100%}.country-picker{width:100%}.country-picker>summary{width:100%}.country-menu{left:0;right:auto;width:100%}.country-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.shell{padding:0 16px}.hero .shell{padding-top:42px;padding-bottom:43px}.calendar-panel{padding:10px}.tradingview-widget-container{height:650px}.info-card{padding:18px}.archive-banner{padding:22px}.hero p{font-size:16px}}
     @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
   </style>
 </head>
@@ -88,23 +114,58 @@
         <div><h2 id="calendar-title">Upcoming economic events</h2><p class="subheading">Dates, times, event importance and published figures are supplied by TradingView. Filter the calendar for the markets and announcements you follow.</p></div>
         <span class="tag">Updating third-party calendar</span>
       </div>
+        <form id="country-filter-form" class="country-filter" aria-label="Filter the economic calendar by country">
+          <div class="country-filter-intro"><strong>Choose which countries to include</strong><p>Pick one country or several. The calendar refreshes when you apply your selection.</p></div>
+          <div class="country-filter-controls">
+            <details id="country-picker" class="country-picker">
+              <summary id="country-summary">Countries · All 20 markets</summary>
+              <div class="country-menu">
+                <div class="country-quick" aria-label="Quick selections">
+                  <button class="country-preset" type="button" data-country-preset="all">All 20</button>
+                  <button class="country-preset" type="button" data-country-preset="gb,us">UK + US</button>
+                  <button class="country-preset" type="button" data-country-preset="gb,us,eu">UK + US + Euro</button>
+                  <button class="country-preset" type="button" data-country-preset="none">Clear</button>
+                </div>
+                <fieldset class="country-fields">
+                  <legend>Markets to display</legend>
+                  <div class="country-grid">
+              <label><input type="checkbox" name="market" value="gb" checked> United Kingdom</label>
+              <label><input type="checkbox" name="market" value="us" checked> United States</label>
+              <label><input type="checkbox" name="market" value="eu" checked> Euro area / EU</label>
+              <label><input type="checkbox" name="market" value="de" checked> Germany</label>
+              <label><input type="checkbox" name="market" value="fr" checked> France</label>
+              <label><input type="checkbox" name="market" value="it" checked> Italy</label>
+              <label><input type="checkbox" name="market" value="ca" checked> Canada</label>
+              <label><input type="checkbox" name="market" value="jp" checked> Japan</label>
+              <label><input type="checkbox" name="market" value="cn" checked> China</label>
+              <label><input type="checkbox" name="market" value="in" checked> India</label>
+              <label><input type="checkbox" name="market" value="au" checked> Australia</label>
+              <label><input type="checkbox" name="market" value="br" checked> Brazil</label>
+              <label><input type="checkbox" name="market" value="kr" checked> South Korea</label>
+              <label><input type="checkbox" name="market" value="mx" checked> Mexico</label>
+              <label><input type="checkbox" name="market" value="id" checked> Indonesia</label>
+              <label><input type="checkbox" name="market" value="tr" checked> Türkiye</label>
+              <label><input type="checkbox" name="market" value="sa" checked> Saudi Arabia</label>
+              <label><input type="checkbox" name="market" value="za" checked> South Africa</label>
+              <label><input type="checkbox" name="market" value="ar" checked> Argentina</label>
+              <label><input type="checkbox" name="market" value="ru" checked> Russia</label>
+                  </div>
+                </fieldset>
+                <div class="country-actions">
+                  <span class="country-hint" id="country-count">20 selected</span>
+                  <button type="submit">Apply countries</button>
+                </div>
+              </div>
+            </details>
+          </div>
+          <p id="country-filter-status" class="country-filter-status" role="status" aria-live="polite">Showing all 20 listed markets.</p>
+        </form>
       <div class="calendar-panel">
         <p class="external-note">This calendar loads a TradingView widget. Its display, coverage and update timing depend on TradingView and your connection. Times may follow the calendar's own timezone settings, so check the timezone shown before acting on a release.</p>
-        <!-- TradingView's official Economic Calendar widget. Keep provider attribution visible. -->
-        <div class="tradingview-widget-container">
+        <!-- TradingView Economic Calendar. Configuration applied using its documented countryFilter option. -->
+        <div id="calendar-widget" class="tradingview-widget-container" aria-label="TradingView economic events">
           <div class="tradingview-widget-container__widget"></div>
           <div class="tradingview-widget-copyright"><a href="https://www.tradingview.com/economic-calendar/" rel="noopener noreferrer" target="_blank">Economic Calendar</a> by TradingView</div>
-          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-events.js" async>
-          {
-            "colorTheme": "light",
-            "isTransparent": false,
-            "locale": "en",
-            "countryFilter": "ar,au,br,ca,cn,fr,de,in,id,it,jp,kr,mx,ru,sa,za,tr,gb,us,eu",
-            "importanceFilter": "-1,0,1",
-            "width": "100%",
-            "height": 670
-          }
-          </script>
         </div>
         <noscript><p>The embedded calendar requires JavaScript. You can <a href="https://www.tradingview.com/economic-calendar/">open TradingView's economic calendar directly</a>.</p></noscript>
         <p class="source-note">If the calendar does not appear, <a href="https://www.tradingview.com/economic-calendar/" target="_blank" rel="noopener noreferrer">open it directly on TradingView ↗</a>. Embedded content is controlled by the external provider; your browser may exchange technical connection data with TradingView when it loads.</p>
@@ -131,5 +192,101 @@
     <p class="source-note">TMNM does not produce, independently verify or guarantee the completeness of the third-party calendar. Release times and values may change. This page is for information and education, not financial or investment advice. No account or subscription is required to browse TMNM's archive.</p>
   </main>
   <footer><div class="shell foot-row"><div><strong>Truth Matters News Media</strong><p>Independent reporting · Evidence first</p></div><div><a href="./">Published archive</a> · <a href="economic-calendar.html" aria-current="page">Economic calendar</a> · <a href="https://truthmattersnm.substack.com/" target="_blank" rel="noopener noreferrer">Substack</a></div></div></footer>
+
+  <script>
+    "use strict";
+    (() => {
+      const allowed = ["gb","us","eu","de","fr","it","ca","jp","cn","in","au","br","kr","mx","id","tr","sa","za","ar","ru"];
+      const accepted = new Set(allowed);
+      const form = document.getElementById("country-filter-form");
+      const picker = document.getElementById("country-picker");
+      const summary = document.getElementById("country-summary");
+      const count = document.getElementById("country-count");
+      const status = document.getElementById("country-filter-status");
+      const mount = document.getElementById("calendar-widget");
+      const checks = Array.from(form.querySelectorAll('input[name="market"]'));
+      const checkedCodes = () => checks.filter(input => input.checked).map(input => input.value);
+      function updatePickerText() {
+        const n = checkedCodes().length;
+        count.textContent = n + " selected";
+        summary.textContent = n === allowed.length ? "Countries · All 20 markets" : "Countries · " + n + " selected";
+      }
+      function renderCalendar(codes) {
+        const widgetTarget = document.createElement("div");
+        widgetTarget.className = "tradingview-widget-container__widget";
+        const credit = mount.querySelector(".tradingview-widget-copyright");
+        mount.replaceChildren(widgetTarget, credit);
+        const script = document.createElement("script");
+        script.type = "text/javascript";
+        script.async = true;
+        script.src = "https://s3.tradingview.com/external-embedding/embed-widget-events.js";
+        script.textContent = JSON.stringify({
+          colorTheme: "light",
+          isTransparent: false,
+          locale: "en",
+          countryFilter: codes.join(","),
+          importanceFilter: "-1,0,1",
+          width: "100%",
+          height: 670
+        });
+        mount.appendChild(script);
+      }
+      function showCountries(codes) {
+        if (codes.length === allowed.length) return "Showing all 20 listed markets.";
+        if (codes.length === 1) {
+          const input = checks.find(check => check.value === codes[0]);
+          return "Showing events for " + input.parentElement.textContent.trim() + ".";
+        }
+        return "Showing events for " + codes.length + " selected markets.";
+      }
+      const params = new URLSearchParams(window.location.search);
+      const fromLink = params.get("countries");
+      let initial = allowed;
+      if (fromLink !== null) {
+        const requested = [...new Set(fromLink.toLowerCase().split(",").filter(code => accepted.has(code)))];
+        if (requested.length) initial = allowed.filter(code => requested.includes(code));
+      }
+      checks.forEach(check => {check.checked = initial.includes(check.value)});
+      updatePickerText();
+      status.textContent = showCountries(initial);
+      renderCalendar(initial);
+      form.querySelectorAll("[data-country-preset]").forEach(button => {
+        button.addEventListener("click", () => {
+          const set = button.dataset.countryPreset === "all"
+            ? new Set(allowed)
+            : new Set(button.dataset.countryPreset === "none" ? [] : button.dataset.countryPreset.split(","));
+          checks.forEach(check => {check.checked = set.has(check.value)});
+          updatePickerText();
+          status.classList.remove("error");
+        });
+      });
+      checks.forEach(check => check.addEventListener("change", () => {
+        updatePickerText();
+        status.classList.remove("error");
+      }));
+      form.addEventListener("submit", event => {
+        event.preventDefault();
+        const chosen = checkedCodes();
+        if (!chosen.length) {
+          status.textContent = "Select at least one country before applying.";
+          status.classList.add("error");
+          picker.open = true;
+          return;
+        }
+        status.classList.remove("error");
+        status.textContent = showCountries(chosen);
+        renderCalendar(chosen);
+        picker.open = false;
+        const url = new URL(window.location.href);
+        if (chosen.length === allowed.length) url.searchParams.delete("countries");
+        else url.searchParams.set("countries", chosen.join(","));
+        window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+        updatePickerText();
+      });
+      document.addEventListener("click", event => {
+        if (picker.open && !picker.contains(event.target)) picker.open = false;
+      });
+    })();
+  </script>
 </body>
 </html>
