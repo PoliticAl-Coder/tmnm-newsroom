@@ -10,6 +10,15 @@ Source of the Truth Matters News Media published-article index.
 - Published entries currently indexed: **42**
 - GitHub Pages deployment: **not yet verified**
 
+## Economic calendar
+
+- Visitor page: `economic-calendar.html` on the existing `gh-pages` branch.
+- Expected public URL (not verified as live): `https://political-coder.github.io/tmnm-newsroom/economic-calendar.html`
+- Calendar data: official embeddable TradingView Economic Calendar widget (third-party-controlled, automatically updated by provider, not TMNM-authored release figures).
+- Reciprocal navigation: economic-calendar page links to the published archive; archive index links to the calendar from navigation and a promotion strip.
+- Rights and technical caveats: keep the visible TradingView credit and fallback link; no copied economic-release dataset, scraped provider API, credentials, or private TMNM material. Verify external widget actually renders before promising the feature in a YouTube jingle.
+- Scope: GitHub Pages source HTML only. No local OwnerConsole, publisher scheduling, Google OAuth, broadcast, credentials or production DB changes.
+
 ## Included articles
 The catalogue contains the three previously documented entries below, plus 39 additional historical Facebook articles whose original permalinks and publishing timestamps were captured in TMNM's dated read-only Meta Page audits of 11 August and 12 September 2026. The historical audits do not prove that links remain accessible today.
 
