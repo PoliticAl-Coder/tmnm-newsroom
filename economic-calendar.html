@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c1b31">
+  <meta name="description" content="Track upcoming UK and global economic announcements with the TMNM Economic Calendar. Explore independent reporting in the Truth Matters News Media published archive.">
+  <title>Economic Calendar | Truth Matters News Media</title>
+  <style>
+    :root{color-scheme:light;--navy:#0c1b31;--navy2:#172d48;--ink:#162337;--muted:#516075;--line:#dce3ea;--paper:#f7f9fb;--gold:#e8b74d;--link:#174f84;--focus:#bc7f13}
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.55}
+    a{color:var(--link)}a:focus-visible{outline:3px solid var(--focus);outline-offset:4px}
+    .shell{max-width:1160px;margin:0 auto;padding:0 25px}
+    .masthead{background:var(--navy);color:#fff;border-bottom:5px solid var(--gold)}
+    .head-row{display:flex;justify-content:space-between;align-items:center;gap:20px;padding-top:20px;padding-bottom:20px}
+    .identity{display:flex;align-items:center;gap:15px;text-decoration:none;color:inherit}
+    .mark{width:50px;height:50px;flex:0 0 50px;border:2px solid #d5a743;display:grid;place-items:center;color:#f3cc77;font-size:13px;font-weight:900;letter-spacing:-.5px}
+    .org{display:block;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#f1c879;font-weight:750}
+    .tagline{display:block;font-size:13px;color:#c8d6e6}
+    .head-links{display:flex;flex-wrap:wrap;gap:16px;justify-content:flex-end}
+    .head-links a{color:#e6eef8;font-size:13px;text-decoration:none;border-bottom:1px solid #7489a0}
+    .head-links a[aria-current]{color:#f1c879;border-bottom-color:var(--gold);font-weight:800}
+    .hero{background:linear-gradient(117deg,#102a49,#182f4a 67%,#324766);color:#fff}
+    .hero .shell{padding-top:54px;padding-bottom:51px}
+    .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.18em;color:#f2c776;font-weight:800}
+    h1{font-size:clamp(35px,5vw,59px);line-height:1.08;letter-spacing:-.045em;margin:11px 0 14px}
+    .hero p{max-width:770px;font-size:17px;color:#d5e1ee;margin:0}
+    .hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:29px}
+    .button{display:inline-flex;align-items:center;justify-content:center;min-height:46px;border:1px solid #d7ad54;border-radius:6px;padding:11px 17px;font-weight:800;text-decoration:none;font-size:14px}
+    .button--gold{background:var(--gold);color:#172338}
+    .button--ghost{background:transparent;color:#fff;border-color:#a8bad0}
+    main{padding-top:38px;padding-bottom:70px}
+    .section-heading{display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:13px;margin-bottom:16px}
+    h2{margin:0;font-size:26px;letter-spacing:-.025em}
+    .subheading{margin:5px 0 0;color:var(--muted);font-size:14px;max-width:740px}
+    .tag{font-size:12px;font-weight:800;color:#705219;background:#fff3d7;border:1px solid #ead7ad;border-radius:4px;padding:5px 10px}
+    .calendar-panel{background:#fff;border:1px solid var(--line);border-radius:11px;box-shadow:0 5px 23px #0c1b310b;padding:20px}
+    .external-note{padding:0 0 15px;margin:0;color:#4b5e73;font-size:13px}
+    .tradingview-widget-container{height:710px;width:100%;min-width:0}
+    .tradingview-widget-container__widget{height:calc(100% - 31px);width:100%}
+    .tradingview-widget-copyright{font-size:12px;padding-top:6px}
+    .source-note{margin:14px 0 0;font-size:13px;color:#53657b}
+    .source-note a{font-weight:750}
+    .insight{margin-top:33px;display:grid;grid-template-columns:1fr 1fr;gap:17px}
+    .info-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:24px}
+    .info-card h2{font-size:21px}
+    .info-card p{margin:9px 0 0;color:#4d5f74;font-size:14px}
+    .info-card a{display:inline-block;margin-top:16px;font-weight:800}
+    .archive-banner{margin-top:32px;background:#172d48;color:#fff;border-left:6px solid var(--gold);border-radius:10px;padding:27px 29px;display:flex;gap:24px;align-items:center;justify-content:space-between}
+    .archive-banner h2{font-size:24px}
+    .archive-banner p{color:#d0dcea;margin:8px 0 0;font-size:14px;max-width:650px}
+    .archive-banner a{white-space:nowrap}
+    footer{background:var(--navy);color:#cfdae8;padding:28px 0;font-size:13px}
+    .foot-row{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
+    footer a{color:#f2d18c}footer p{margin:5px 0 0}
+    @media(max-width:760px){.head-row{align-items:flex-start;flex-direction:column}.head-links{justify-content:flex-start}.insight{grid-template-columns:1fr}.archive-banner{align-items:flex-start;flex-direction:column}.tradingview-widget-container{height:690px}}
+    @media(max-width:520px){.shell{padding:0 16px}.hero .shell{padding-top:42px;padding-bottom:43px}.calendar-panel{padding:10px}.tradingview-widget-container{height:650px}.info-card{padding:18px}.archive-banner{padding:22px}.hero p{font-size:16px}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  </style>
+</head>
+<body>
+  <header class="masthead">
+    <div class="shell head-row">
+      <a class="identity" href="./" aria-label="Truth Matters News Media published archive"><span class="mark">TMNM</span><span><span class="org">Truth Matters News Media</span><span class="tagline">Independent reporting · Evidence first</span></span></a>
+      <nav class="head-links" aria-label="Site navigation">
+        <a href="./">Published archive</a>
+        <a href="economic-calendar.html" aria-current="page">Economic calendar</a>
+        <a href="https://truthmattersnm.substack.com/" target="_blank" rel="noopener noreferrer">Substack ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero" aria-labelledby="page-title"><div class="shell">
+    <div class="eyebrow">TMNM · Economics and markets</div>
+    <h1 id="page-title">The economic calendar.</h1>
+    <p>Know when the numbers are due. Follow upcoming inflation reports, interest-rate decisions, employment data and other major economic announcements from the UK and around the world.</p>
+    <div class="hero-actions">
+      <a class="button button--gold" href="#calendar">Explore the calendar ↓</a>
+      <a class="button button--ghost" href="./">Browse published stories →</a>
+    </div>
+  </div></section>
+
+  <main class="shell">
+    <section id="calendar" aria-labelledby="calendar-title">
+      <div class="section-heading">
+        <div><h2 id="calendar-title">Upcoming economic events</h2><p class="subheading">Dates, times, event importance and published figures are supplied by TradingView. Filter the calendar for the markets and announcements you follow.</p></div>
+        <span class="tag">Updating third-party calendar</span>
+      </div>
+      <div class="calendar-panel">
+        <p class="external-note">This calendar loads a TradingView widget. Its display, coverage and update timing depend on TradingView and your connection. Times may follow the calendar's own timezone settings, so check the timezone shown before acting on a release.</p>
+        <!-- TradingView's official Economic Calendar widget. Keep provider attribution visible. -->
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <div class="tradingview-widget-copyright"><a href="https://www.tradingview.com/economic-calendar/" rel="noopener noreferrer" target="_blank">Economic Calendar</a> by TradingView</div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-events.js" async>
+          {
+            "colorTheme": "light",
+            "isTransparent": false,
+            "locale": "en",
+            "countryFilter": "ar,au,br,ca,cn,fr,de,in,id,it,jp,kr,mx,ru,sa,za,tr,gb,us,eu",
+            "importanceFilter": "-1,0,1",
+            "width": "100%",
+            "height": 670
+          }
+          </script>
+        </div>
+        <noscript><p>The embedded calendar requires JavaScript. You can <a href="https://www.tradingview.com/economic-calendar/">open TradingView's economic calendar directly</a>.</p></noscript>
+        <p class="source-note">If the calendar does not appear, <a href="https://www.tradingview.com/economic-calendar/" target="_blank" rel="noopener noreferrer">open it directly on TradingView ↗</a>. Embedded content is controlled by the external provider; your browser may exchange technical connection data with TradingView when it loads.</p>
+      </div>
+    </section>
+
+    <div class="insight">
+      <section class="info-card" aria-labelledby="watch-title">
+        <h2 id="watch-title">What should I watch?</h2>
+        <p>Inflation (CPI/PCE), central-bank decisions, jobs reports and GDP can change expectations about interest rates, household costs and financial markets. A release being scheduled is not a prediction of its outcome.</p>
+        <a href="#calendar">Check upcoming releases ↑</a>
+      </section>
+      <section class="info-card" aria-labelledby="reporting-title">
+        <h2 id="reporting-title">Numbers need context.</h2>
+        <p>The calendar tells you when a report is due. Our published archive helps you explore the policy debates, economics and reporting behind the headlines.</p>
+        <a href="./">Explore TMNM's article archive →</a>
+      </section>
+    </div>
+
+    <aside class="archive-banner" aria-labelledby="archive-title">
+      <div><div class="eyebrow">Beyond the numbers</div><h2 id="archive-title">Stay for the story.</h2><p>Found something important in the calendar? Browse TMNM's published reporting, explainers and investigations, organised by author and topic.</p></div>
+      <a class="button button--gold" href="./">Visit the archive →</a>
+    </aside>
+    <p class="source-note">TMNM does not produce, independently verify or guarantee the completeness of the third-party calendar. Release times and values may change. This page is for information and education, not financial or investment advice. No account or subscription is required to browse TMNM's archive.</p>
+  </main>
+  <footer><div class="shell foot-row"><div><strong>Truth Matters News Media</strong><p>Independent reporting · Evidence first</p></div><div><a href="./">Published archive</a> · <a href="economic-calendar.html" aria-current="page">Economic calendar</a> · <a href="https://truthmattersnm.substack.com/" target="_blank" rel="noopener noreferrer">Substack</a></div></div></footer>
+</body>
+</html>
